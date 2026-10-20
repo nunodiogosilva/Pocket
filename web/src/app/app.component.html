@@ -2,164 +2,142 @@
   <header class="flex h-16 shrink-0 items-center justify-between gap-3 px-4 border-b border-slate-200/70 bg-white">
     <!-- Brand -->
     <div class="flex shrink-0 items-center gap-2.5 md:w-60">
-      <div class="flex size-9 items-center justify-center rounded-xl bg-gradient-to-tr from-blue-700 to-indigo-500 text-white shadow-sm">
+      <div
+        class="flex size-9 items-center justify-center rounded-xl bg-gradient-to-tr from-blue-700 to-indigo-500 text-white shadow-sm">
         <!-- Pocket Logo -->
-        <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+          stroke-linecap="round" stroke-linejoin="round">
           <path d="M4 4h16v8a8 8 0 0 1-16 0V4z" />
           <path d="M9 10h6" />
         </svg>
       </div>
       <div class="flex flex-col">
         <span class="text-lg font-bold tracking-tight text-slate-900 leading-tight">Pocket</span>
-        <span class="hidden text-[10px] uppercase font-semibold tracking-wider text-slate-500 sm:inline">Self-Hosted Cloud</span>
       </div>
     </div>
 
     <!-- Search Bar with Suggestions Dropdown -->
     <div class="relative flex-1 max-w-xl min-w-0">
-      <form
-        role="search"
+      <form role="search"
         class="relative flex h-11 w-full items-center gap-2 rounded-full bg-[#f0f4f9] pr-2 pl-4 border border-transparent focus-within:bg-white focus-within:border-blue-300 focus-within:shadow-md transition"
-        (submit)="$event.preventDefault(); executeSearch(searchInput.value)"
-      >
-        <svg class="size-4.5 shrink-0 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+        (submit)="$event.preventDefault(); executeSearch(searchInput.value)">
+        <svg class="size-4.5 shrink-0 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2" stroke-linecap="round" aria-hidden="true">
           <circle cx="11" cy="11" r="7" />
           <path d="m20 20-3.5-3.5" />
         </svg>
-        <input
-          #searchInput
-          type="text"
-          enterkeyhint="search"
-          placeholder="Search files or folders..."
-          aria-label="Search files or folders"
-          autocomplete="off"
+        <input #searchInput type="text" enterkeyhint="search" placeholder="Search files or folders..."
+          aria-label="Search files or folders" autocomplete="off"
           class="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-slate-500"
-          [value]="currentSearchText()"
-          (input)="onSearchInput(searchInput.value)"
-          (focus)="onSearchFocus()"
-          (blur)="closeSuggestions()"
-          (keydown.escape)="suggestionsOpen.set(false)"
-        />
+          [value]="currentSearchText()" (input)="onSearchInput(searchInput.value)" (focus)="onSearchFocus()"
+          (blur)="closeSuggestions()" (keydown.escape)="suggestionsOpen.set(false)" />
         @if (isSearchingSuggestions()) {
-          <div class="size-4 shrink-0 animate-spin rounded-full border-2 border-blue-600 border-t-transparent mr-1"></div>
+        <div class="size-4 shrink-0 animate-spin rounded-full border-2 border-blue-600 border-t-transparent mr-1"></div>
         }
         @if (currentSearchText() || query()) {
-          <button
-            type="button"
-            class="rounded-full p-1.5 text-slate-500 hover:bg-slate-200 cursor-pointer"
-            aria-label="Clear search"
-            (click)="clearSearch()"
-          >
-            <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
-              <path d="M6 6l12 12M18 6 6 18" />
-            </svg>
-          </button>
+        <button type="button" class="rounded-full p-1.5 text-slate-500 hover:bg-slate-200 cursor-pointer"
+          aria-label="Clear search" (click)="clearSearch()">
+          <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" aria-hidden="true">
+            <path d="M6 6l12 12M18 6 6 18" />
+          </svg>
+        </button>
         }
       </form>
 
       <!-- Autocomplete Suggestions Dropdown -->
       @if (suggestionsOpen() && (suggestions().folders.length > 0 || suggestions().files.length > 0)) {
+      <div
+        class="absolute left-0 right-0 top-full mt-1.5 max-h-[28rem] overflow-y-auto rounded-2xl bg-white/98 backdrop-blur-md p-2 shadow-2xl border border-slate-200 z-50 animate-in fade-in zoom-in-95 duration-100"
+        (mousedown)="$event.preventDefault()">
+        <!-- FOLDERS SUGGESTIONS -->
+        @for (folder of suggestions().folders; track folder.id) {
         <div
-          class="absolute left-0 right-0 top-full mt-1.5 max-h-[28rem] overflow-y-auto rounded-2xl bg-white/98 backdrop-blur-md p-2 shadow-2xl border border-slate-200 z-50 animate-in fade-in zoom-in-95 duration-100"
-          (mousedown)="$event.preventDefault()"
-        >
-          <!-- FOLDERS SUGGESTIONS -->
-          @for (folder of suggestions().folders; track folder.id) {
-            <div
-              class="flex items-center gap-3 rounded-xl px-3 py-2 text-sm hover:bg-blue-50/80 hover:text-blue-700 transition cursor-pointer group"
-              (click)="selectFolderSuggestion(folder)"
-            >
-              <app-file-icon [isFolder]="true" size="md" customClass="shrink-0" />
-              <span class="truncate font-medium text-slate-800 group-hover:text-blue-700">
-                {{ folder.filename }}
-              </span>
-              <span class="ml-auto text-[11px] text-slate-400 font-normal">Open folder</span>
-            </div>
-          }
-
-          <!-- FILES SUGGESTIONS -->
-          @for (file of suggestions().files; track file.id) {
-            <div
-              class="flex items-center gap-3 rounded-xl px-3 py-2 text-sm hover:bg-blue-50/80 hover:text-blue-700 transition cursor-pointer group"
-              (click)="selectFileSuggestion(file)"
-            >
-              <app-file-icon [filename]="file.filename" [mimeType]="file.mime_type" size="md" customClass="shrink-0" />
-              <div class="min-w-0 flex-1">
-                <p class="truncate font-medium text-slate-800 group-hover:text-blue-700">
-                  {{ file.filename }}
-                </p>
-                @if (file.snippet) {
-                  <p class="truncate text-[11px] text-slate-400">
-                    {{ file.snippet }}
-                  </p>
-                }
-              </div>
-              <span class="shrink-0 text-[11px] text-slate-400 font-mono">
-                {{ formatSize(file.file_size) }}
-              </span>
-            </div>
-          }
-
-          <!-- FULL SEARCH FOOTER -->
-          <div class="mt-1 border-t border-slate-100 pt-1.5">
-            <button
-              type="button"
-              class="flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs font-semibold text-blue-600 hover:bg-blue-50 transition cursor-pointer"
-              (click)="executeSearch(searchInput.value)"
-            >
-              <div class="flex items-center gap-2">
-                <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <circle cx="11" cy="11" r="7" />
-                  <path d="m20 20-3.5-3.5" />
-                </svg>
-                <span>Semantic search for "{{ currentSearchText() }}"</span>
-              </div>
-              <span class="rounded bg-blue-100/70 px-1.5 py-0.5 text-[10px] text-blue-800">↵ Enter</span>
-            </button>
-          </div>
+          class="flex items-center gap-3 rounded-xl px-3 py-2 text-sm hover:bg-blue-50/80 hover:text-blue-700 transition cursor-pointer group"
+          (click)="selectFolderSuggestion(folder)">
+          <app-file-icon [isFolder]="true" size="md" customClass="shrink-0" />
+          <span class="truncate font-medium text-slate-800 group-hover:text-blue-700">
+            {{ folder.filename }}
+          </span>
+          <span class="ml-auto text-[11px] text-slate-400 font-normal">Open folder</span>
         </div>
+        }
+
+        <!-- FILES SUGGESTIONS -->
+        @for (file of suggestions().files; track file.id) {
+        <div
+          class="flex items-center gap-3 rounded-xl px-3 py-2 text-sm hover:bg-blue-50/80 hover:text-blue-700 transition cursor-pointer group"
+          (click)="selectFileSuggestion(file)">
+          <app-file-icon [filename]="file.filename" [mimeType]="file.mime_type" size="md" customClass="shrink-0" />
+          <div class="min-w-0 flex-1">
+            <p class="truncate font-medium text-slate-800 group-hover:text-blue-700">
+              {{ file.filename }}
+            </p>
+            @if (file.snippet) {
+            <p class="truncate text-[11px] text-slate-400">
+              {{ file.snippet }}
+            </p>
+            }
+          </div>
+          <span class="shrink-0 text-[11px] text-slate-400 font-mono">
+            {{ formatSize(file.file_size) }}
+          </span>
+        </div>
+        }
+
+        <!-- FULL SEARCH FOOTER -->
+        <div class="mt-1 border-t border-slate-100 pt-1.5">
+          <button type="button"
+            class="flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs font-semibold text-blue-600 hover:bg-blue-50 transition cursor-pointer"
+            (click)="executeSearch(searchInput.value)">
+            <div class="flex items-center gap-2">
+              <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="7" />
+                <path d="m20 20-3.5-3.5" />
+              </svg>
+              <span>Semantic search for "{{ currentSearchText() }}"</span>
+            </div>
+            <span class="rounded bg-blue-100/70 px-1.5 py-0.5 text-[10px] text-blue-800">↵ Enter</span>
+          </button>
+        </div>
+      </div>
       }
     </div>
 
     <!-- Tailscale Identity Badge -->
     <div class="flex items-center gap-3 shrink-0">
       @if (currentUser.value(); as user) {
-        <div
-          class="flex items-center gap-2.5 px-3 py-1.5 rounded-full bg-slate-100/90 border border-slate-200/90 text-xs text-slate-700 shadow-2xs"
-          [title]="'Authenticated via Tailscale as ' + (user.login || user.email)"
-        >
-          @if (user.profile_pic) {
-            <div class="relative shrink-0 flex items-center justify-center">
-              <img
-                [src]="user.profile_pic"
-                alt="Profile photo"
-                class="size-6 rounded-full object-cover ring-1 ring-slate-300"
-                referrerpolicy="no-referrer"
-              />
-              <span class="absolute -bottom-0.5 -right-0.5 size-2 rounded-full bg-emerald-500 ring-1 ring-white" title="Connected via Tailscale"></span>
-            </div>
-          } @else {
-            <!-- Tailscale 3-node mesh icon -->
-            <svg class="size-3.5 text-emerald-600 shrink-0" viewBox="0 0 24 24" fill="currentColor">
-              <circle cx="6" cy="12" r="3"/>
-              <circle cx="18" cy="6" r="3"/>
-              <circle cx="18" cy="18" r="3"/>
-            </svg>
-          }
-          <div class="flex flex-col text-left leading-none max-w-[140px] sm:max-w-[200px] truncate">
-            <span class="font-semibold text-slate-900 truncate">{{ user.name || user.login }}</span>
-            <span class="text-[10px] text-slate-500 truncate">{{ user.login }}</span>
-          </div>
+      <div
+        class="flex items-center gap-2.5 px-3 py-1.5 rounded-full bg-slate-100/90 border border-slate-200/90 text-xs text-slate-700 shadow-2xs"
+        [title]="'Authenticated via Tailscale as ' + (user.login || user.email)">
+        @if (user.profile_pic) {
+        <div class="relative shrink-0 flex items-center justify-center">
+          <img [src]="user.profile_pic" alt="Profile photo"
+            class="size-6 rounded-full object-cover ring-1 ring-slate-300" referrerpolicy="no-referrer" />
+          <span class="absolute -bottom-0.5 -right-0.5 size-2 rounded-full bg-emerald-500 ring-1 ring-white"
+            title="Connected via Tailscale"></span>
         </div>
+        } @else {
+        <!-- Tailscale 3-node mesh icon -->
+        <svg class="size-3.5 text-emerald-600 shrink-0" viewBox="0 0 24 24" fill="currentColor">
+          <circle cx="6" cy="12" r="3" />
+          <circle cx="18" cy="6" r="3" />
+          <circle cx="18" cy="18" r="3" />
+        </svg>
+        }
+        <div class="flex flex-col text-left leading-none max-w-[140px] sm:max-w-[200px] truncate">
+          <span class="font-semibold text-slate-900 truncate">{{ user.name || user.login }}</span>
+          <span class="text-[10px] text-slate-500 truncate">{{ user.login }}</span>
+        </div>
+      </div>
       } @else {
-        <div class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100 text-xs text-slate-500">
-          <div class="size-2 rounded-full bg-emerald-500 animate-pulse"></div>
-          <span class="font-medium text-[11px]">Tailscale Active</span>
-        </div>
+      <div class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100 text-xs text-slate-500">
+        <div class="size-2 rounded-full bg-emerald-500 animate-pulse"></div>
+        <span class="font-medium text-[11px]">Tailscale Active</span>
+      </div>
       }
     </div>
   </header>
 
   <app-file-manager #fileManager class="flex min-h-0 flex-1" [(searchQuery)]="query" />
 </div>
-
