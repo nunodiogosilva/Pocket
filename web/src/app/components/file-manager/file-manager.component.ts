@@ -34,8 +34,8 @@ export class FileManager {
   /** View mode: 'grid' or 'list', persisted to localStorage */
   readonly viewMode = signal<'grid' | 'list'>(
     (typeof localStorage !== 'undefined' &&
-      ((localStorage.getItem('pocket_view_mode') || localStorage.getItem('bitpocket_view_mode')) as 'grid' | 'list')) ||
-      'grid',
+      ((localStorage.getItem('pocket_view_mode') || localStorage.getItem('pocket_view_mode')) as 'grid' | 'list')) ||
+    'grid',
   );
 
   /** Folders opened down to the current one. */

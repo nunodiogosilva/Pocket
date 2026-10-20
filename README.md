@@ -1,8 +1,8 @@
-# System Specification & Architecture: BitPocket
+# System Specification & Architecture: Pocket
 
 ## 1. Project Overview & Core Philosophy
 
-**BitPocket** is a universal, open-source, self-hosted personal cloud storage and file management system. Designed from the ground up to be completely operating-system agnostic, BitPocket runs seamlessly on any environment supporting Docker and Docker Compose—including Linux servers, Raspberry Pi units, macOS, and Windows Server.
+**Pocket** is a universal, open-source, self-hosted personal cloud storage and file management system. Designed from the ground up to be completely operating-system agnostic, Pocket runs seamlessly on any environment supporting Docker and Docker Compose—including Linux servers, Raspberry Pi units, macOS, and Windows Server.
 
 The application adheres to a strict lightweight resource budget (targeting under 200MB of RAM) to leave ample headroom for system services and secure networking mesh layers. It eliminates complex configuration files, external multi-container dependencies, and heavy server-side processing by utilizing an embedded database architecture and client-side rendering for file previews.
 
@@ -20,18 +20,18 @@ The application adheres to a strict lightweight resource budget (targeting under
 
 ## 3. Identity & Authentication Architecture
 
-BitPocket abandons traditional password databases, user registration forms, and custom login UI views by delegating identity management entirely to **Tailscale Identity**.
+Pocket abandons traditional password databases, user registration forms, and custom login UI views by delegating identity management entirely to **Tailscale Identity**.
 
 * **Network-Layer Trust:** When a user accesses the application through the private Tailnet domain, incoming traffic is intercepted and validated by Tailscale's secure boundary proxy.
 * **Trusted Header Propagation:** Tailscale Serve automatically injects verified user identity context into proxy request headers—specifically capturing user login identifiers, display names, and profile pictures.
-* **Just-In-Time (JIT) Provisioning:** The API automatically intercepts these identity headers on incoming requests. If an authenticated user interacts with BitPocket for the first time, a corresponding profile is provisioned dynamically within the SQLite database.
+* **Just-In-Time (JIT) Provisioning:** The API automatically intercepts these identity headers on incoming requests. If an authenticated user interacts with Pocket for the first time, a corresponding profile is provisioned dynamically within the SQLite database.
 * **Security Isolation:** API container ports are strictly bound to the local loopback interface on the host machine. This prevents external entities from bypassing the Tailscale proxy layer or spoofing authentication headers over raw local networks.
 
 ---
 
 ## 4. File Preview & Client-Side Rendering Strategy
 
-To maintain a minimal server resource footprint and ensure universal compatibility across host architectures, BitPocket offloads all file preview and inspection mechanics to the client browser:
+To maintain a minimal server resource footprint and ensure universal compatibility across host architectures, Pocket offloads all file preview and inspection mechanics to the client browser:
 
 * **Zero Server-Side Conversion:** The API functions purely as a high-speed file storage and streaming layer, avoiding heavy document-conversion daemons or server-side rendering engines.
 * **Native Browser Capabilities:** Media files (such as MP4 and MOV videos) and PDF documents are streamed directly into native HTML media elements and embedded document viewers.
@@ -41,7 +41,7 @@ To maintain a minimal server resource footprint and ensure universal compatibili
 
 ## 5. Semantic Search & Access Control Architecture
 
-BitPocket features local semantic search powered by `sqlite-vec`, allowing users to query files based on conceptual meaning rather than rigid keyword matching.
+Pocket features local semantic search powered by `sqlite-vec`, allowing users to query files based on conceptual meaning rather than rigid keyword matching.
 
 ### Data Ingestion & Embedding Lifecycle
 
@@ -59,7 +59,7 @@ To maintain absolute data privacy across multi-user environments or shared nodes
 
 ## 6. Public File Sharing Mechanics
 
-For scenarios requiring collaboration with individuals outside the private Tailnet, BitPocket implements secure public link generation:
+For scenarios requiring collaboration with individuals outside the private Tailnet, Pocket implements secure public link generation:
 
 * **Granular Tokenization:** Users can generate unguessable, cryptographically secure sharing tokens tied to individual file records.
 * **Controlled Exposure:** Public endpoints validate tokens independently of user accounts, streaming only the specific authorized file without granting broader access to the underlying storage directory or file structure.
@@ -69,12 +69,12 @@ For scenarios requiring collaboration with individuals outside the private Tailn
 
 ## 7. Deployment & Setup Protocol (Interactive OS-Agnostic Setup Wizard)
 
-To streamline the installation process, BitPocket provides a unified interactive configuration script (`setup.py`) that runs natively on any OS with Python 3 installed (Linux, macOS, Windows, and Raspberry Pi). This wizard automates Steps 3, 4, and 5 by prompting for custom values with sensible defaults, updating configuration files, spinning up Docker containers, and mapping Tailscale proxy routes.
+To streamline the installation process, Pocket provides a unified interactive configuration script (`setup.py`) that runs natively on any OS with Python 3 installed (Linux, macOS, Windows, and Raspberry Pi). This wizard automates Steps 3, 4, and 5 by prompting for custom values with sensible defaults, updating configuration files, spinning up Docker containers, and mapping Tailscale proxy routes.
 
 ### Step 1: Prerequisites & Repository Initialization
 
 1. Ensure Docker, Docker Compose, Tailscale, and Python 3 are installed and running on your host machine.
-2. Clone or download the BitPocket repository and navigate to the root directory.
+2. Clone or download the Pocket repository and navigate to the root directory.
 
 ### Step 2: Execute the Interactive Setup Wizard
 
