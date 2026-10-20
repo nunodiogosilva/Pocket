@@ -1,0 +1,24 @@
+services:
+  backend:
+    build: ./backend
+    container_name: bitpocket-backend
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - ${STORAGE_DIR:-./data/storage}:${STORAGE_DIR:-./data/storage}
+    # Bound strictly to loopback (127.0.0.1) to enforce Tailscale security isolation
+    ports:
+      - "127.0.0.1:${BACKEND_PORT:-8000}:8000"
+
+  frontend:
+    build: ./frontend
+    container_name: bitpocket-frontend
+    restart: unless-stopped
+    ports:
+      # Bound to loopback: Tailscale Serve forwards encrypted tailnet traffic here
+      - "127.0.0.1:${FRONTEND_PORT:-80}:80"
+      # Dedicated endpoint for Tailscale Funnel public file downloads
+      - "127.0.0.1:${SHARE_PORT:-8080}:8080"
+    depends_on:
+      - backend

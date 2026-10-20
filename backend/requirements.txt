@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+sqlmodel>=0.0.48
+python-multipart
+sqlite-vec>=0.1.9
+sqlean.py
+model2vec
+pypdf
+httpx
+

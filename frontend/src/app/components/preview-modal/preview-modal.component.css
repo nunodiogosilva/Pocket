@@ -1,0 +1,4 @@
+/* Smooth modal transition styles */
+:host {
+  display: contents;
+}
