@@ -172,21 +172,21 @@ def main():
 
     if args.non_interactive:
         storage_path = default_storage
-        backend_port = "8000"
-        frontend_port = "80"
+        api_port = "8000"
+        web_port = "80"
         share_port = "8080"
         public_base_url = default_base_url
         enable_tailscale = bool(detected_fqdn)
         print(f"Non-interactive mode selected.")
         print(f"  Storage: {storage_path}")
-        print(f"  Backend Port: {backend_port}")
-        print(f"  Frontend Port: {frontend_port}")
+        print(f"  API Port: {api_port}")
+        print(f"  Web Port: {web_port}")
         print(f"  Public Base URL: {public_base_url}")
     else:
         print("\nPlease specify your deployment preferences:")
         storage_path = prompt_input("1. Physical Storage Path (SSD/HDD or local folder)", default_storage)
-        backend_port = prompt_input("2. Backend API Port (bound to 127.0.0.1)", "8000")
-        frontend_port = prompt_input("3. Frontend Web Port (bound to 127.0.0.1)", "80")
+        api_port = prompt_input("2. API Port (bound to 127.0.0.1)", "8000")
+        web_port = prompt_input("3. Web Port (bound to 127.0.0.1)", "80")
         share_port = prompt_input("4. Public Funnel Share Port (bound to 127.0.0.1)", "8080")
         public_base_url = prompt_input("5. Public Base URL (for generated share links)", default_base_url)
 
@@ -232,8 +232,8 @@ DATABASE_URL={database_url}
 PUBLIC_BASE_URL={public_base_url.rstrip('/')}
 
 # Port configurations (bound strictly to 127.0.0.1 loopback)
-BACKEND_PORT={backend_port}
-FRONTEND_PORT={frontend_port}
+API_PORT={api_port}
+WEB_PORT={web_port}
 SHARE_PORT={share_port}
 
 # Tailscale Identity authentication settings
@@ -281,29 +281,29 @@ DEV_USER_NAME=BitPocket Admin
     tailscale_bin = shutil.which("tailscale")
     if tailscale_bin:
         configure_ts = True if args.non_interactive else prompt_yes_no(
-            f"Automatically register BitPocket on Tailnet via 'tailscale serve --bg {frontend_port}'?",
+            f"Automatically register BitPocket on Tailnet via 'tailscale serve --bg {web_port}'?",
             True
         )
 
         if configure_ts:
-            print(f"Registering Tailscale Serve proxy on port {frontend_port}...")
+            print(f"Registering Tailscale Serve proxy on port {web_port}...")
             try:
                 res = subprocess.run(
-                    [tailscale_bin, "serve", "--bg", frontend_port],
+                    [tailscale_bin, "serve", "--bg", web_port],
                     capture_output=True,
                     text=True,
                 )
                 if res.returncode == 0:
-                    print(f"  \033[32m✔\033[0m Tailscale Serve registered successfully on port {frontend_port}!")
+                    print(f"  \033[32m✔\033[0m Tailscale Serve registered successfully on port {web_port}!")
                     print(f"  Tailscale Identity headers will now be securely injected into BitPocket.")
                 else:
                     print(f"\033[1;33m[Notice]\033[0m Tailscale serve command returned: {res.stderr.strip() or res.stdout.strip()}")
-                    print(f"You can manually run: tailscale serve --bg {frontend_port}")
+                    print(f"You can manually run: tailscale serve --bg {web_port}")
             except Exception as exc:
                 print(f"Could not execute tailscale serve: {exc}")
     else:
         print("Tailscale CLI not found. To enable identity authentication when Tailscale is installed, run:")
-        print(f"  tailscale serve --bg {frontend_port}")
+        print(f"  tailscale serve --bg {web_port}")
 
     # Summary & Instructions
     print_step(5, "Setup Complete!")
@@ -312,8 +312,8 @@ DEV_USER_NAME=BitPocket Admin
     print("Architecture Summary:")
     print(f"  • Storage Directory:      {clean_storage_dir}")
     print(f"  • Relational DB & Vector: SQLite + sqlite-vec ({clean_storage_dir}/database.db)")
-    print(f"  • Backend Port (Loopback):127.0.0.1:{backend_port}")
-    print(f"  • Frontend Port (Loopback):127.0.0.1:{frontend_port}")
+    print(f"  • API Port (Loopback):127.0.0.1:{api_port}")
+    print(f"  • Web Port (Loopback):127.0.0.1:{web_port}")
     print(f"  • Identity Authentication:Tailscale Network-Layer Identity (JIT provisioning)")
     print(f"  • Client-Side Previews:   Markdown, CSV, PDF, Video, Audio, Images (Zero server conversion)")
     print(f"  • Semantic Search:        Local vector search strictly filtered by ownership & shares")
@@ -323,7 +323,7 @@ DEV_USER_NAME=BitPocket Admin
     if detected_fqdn:
         print(f"     https://{detected_fqdn}")
     else:
-        print(f"     http://localhost:{frontend_port}")
+        print(f"     http://localhost:{web_port}")
     print("\n  2. Expose public file sharing via Tailscale Funnel (Optional):")
     print(f"     tailscale funnel {share_port}")
     print("\n  3. Monitor container logs:")

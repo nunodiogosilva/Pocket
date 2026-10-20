@@ -10,9 +10,9 @@ The application adheres to a strict lightweight resource budget (targeting under
 
 ## 2. Technical Stack & Architecture
 
-* **Backend Runtime:** Python with FastAPI and SQLModel for high-performance, asynchronous REST API handling.
+* **API Runtime:** Python with FastAPI and SQLModel for high-performance, asynchronous REST API handling.
 * **Database & Vector Engine:** SQLite integrated with `sqlite-vec` for lightweight, file-based relational data storage and native vector similarity search.
-* **Frontend Application:** Angular coupled with Tailwind CSS, engineered to deliver a modern cloud drive user interface with responsive layouts.
+* **Web Application:** Angular coupled with Tailwind CSS, engineered to deliver a modern cloud drive user interface with responsive layouts.
 * **Containerization:** Standardized Docker multi-stage builds and Docker Compose orchestration using persistent named volumes to guarantee absolute OS-agnostic portability.
 * **Networking & Security Proxy:** Tailscale and Tailscale Funnel, providing encrypted mesh routing, zero-port-forwarding public sharing, and automatic network-layer authentication.
 
@@ -24,8 +24,8 @@ BitPocket abandons traditional password databases, user registration forms, and 
 
 * **Network-Layer Trust:** When a user accesses the application through the private Tailnet domain, incoming traffic is intercepted and validated by Tailscale's secure boundary proxy.
 * **Trusted Header Propagation:** Tailscale Serve automatically injects verified user identity context into proxy request headers—specifically capturing user login identifiers, display names, and profile pictures.
-* **Just-In-Time (JIT) Provisioning:** The backend automatically intercepts these identity headers on incoming requests. If an authenticated user interacts with BitPocket for the first time, a corresponding profile is provisioned dynamically within the SQLite database.
-* **Security Isolation:** Backend container ports are strictly bound to the local loopback interface on the host machine. This prevents external entities from bypassing the Tailscale proxy layer or spoofing authentication headers over raw local networks.
+* **Just-In-Time (JIT) Provisioning:** The API automatically intercepts these identity headers on incoming requests. If an authenticated user interacts with BitPocket for the first time, a corresponding profile is provisioned dynamically within the SQLite database.
+* **Security Isolation:** API container ports are strictly bound to the local loopback interface on the host machine. This prevents external entities from bypassing the Tailscale proxy layer or spoofing authentication headers over raw local networks.
 
 ---
 
@@ -33,7 +33,7 @@ BitPocket abandons traditional password databases, user registration forms, and 
 
 To maintain a minimal server resource footprint and ensure universal compatibility across host architectures, BitPocket offloads all file preview and inspection mechanics to the client browser:
 
-* **Zero Server-Side Conversion:** The backend functions purely as a high-speed file storage and streaming layer, avoiding heavy document-conversion daemons or server-side rendering engines.
+* **Zero Server-Side Conversion:** The API functions purely as a high-speed file storage and streaming layer, avoiding heavy document-conversion daemons or server-side rendering engines.
 * **Native Browser Capabilities:** Media files (such as MP4 and MOV videos) and PDF documents are streamed directly into native HTML media elements and embedded document viewers.
 * **Dynamic Client-Side Parsers:** Text documents, Markdown notes, and tabular comma-separated values are fetched raw and parsed dynamically inside the Angular application using lightweight client-side execution engines, rendering clean formatting and interactive tables instantly in the user interface.
 
@@ -88,7 +88,7 @@ python3 setup.py
 The script will interactively guide you through configuration with pre-filled defaults:
 
 * **Storage Path** *(Default: `./data/storage` or `/mnt/nas-storage`)*
-* **Backend Port** *(Default: `8000`)*
+* **API Port** *(Default: `8000`)*
 * **Public Base URL / Tailscale Domain** *(Default auto-detected via `tailscale status` or `http://localhost:8000`)*
 
 ### Behind the Scenes (What the Wizard Automates):
@@ -101,7 +101,7 @@ docker compose up --build -d
 ```
 
 
-* **Step 5 (Secure Network Mapping via Tailscale Serve):** Automatically registers your backend service with Tailscale to route encrypted traffic and inject identity headers:
+* **Step 5 (Secure Network Mapping via Tailscale Serve):** Automatically registers your API service with Tailscale to route encrypted traffic and inject identity headers:
 ```bash
 tailscale serve --bg <PORT>
 

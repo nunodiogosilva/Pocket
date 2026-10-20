@@ -1,5 +1,5 @@
 # ==============================================================================
-# BitPocket Root .gitignore
+# Pocket Root .gitignore
 # ==============================================================================
 
 # --- Environment & Secret Configuration ---
@@ -9,7 +9,7 @@
 
 # --- Application Data & Local Storage (Personal Cloud files) ---
 data/
-backend/data/
+api/data/
 storage/
 user_files/
 tmp/
@@ -25,7 +25,7 @@ __pycache__/
 *$py.class
 *.so
 .Python
-backend/.venv/
+api/.venv/
 .venv/
 venv/
 ENV/
@@ -56,12 +56,12 @@ nosetests.xml
 coverage.xml
 *.cover
 
-# --- Node.js & Angular Frontend ---
+# --- Node.js & Angular Web ---
 node_modules/
-frontend/node_modules/
+web/node_modules/
 .angular/
-frontend/.angular/
-frontend/dist/
+web/.angular/
+web/dist/
 dist/
 npm-debug.log*
 yarn-debug.log*
