@@ -87,8 +87,8 @@ python3 setup.py
 
 The script will interactively guide you through configuration with pre-filled defaults:
 
-* **Storage Path** *(Default: `./data/storage` or `/mnt/nas-storage`)*
-* **API Port** *(Default: `8000`)*
+* **Storage Path** *(Default: `./pocket-storage`)*
+* **Backend Port** *(Default: `8000`)*
 * **Public Base URL / Tailscale Domain** *(Default auto-detected via `tailscale status` or `http://localhost:8000`)*
 
 ### Behind the Scenes (What the Wizard Automates):

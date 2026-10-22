@@ -1,23 +1,23 @@
 services:
-  api:
-    build: ./api
-    container_name: pocket-api
+  backend:
+    build: ./backend
+    container_name: pocket-backend
     restart: unless-stopped
     env_file:
       - .env
     volumes:
-      - ${STORAGE_DIR:-./data/storage}:${STORAGE_DIR:-./data/storage}
+      - ${STORAGE_DIR:-./pocket-storage}:${STORAGE_DIR:-./pocket-storage}
     # Bound strictly to loopback (127.0.0.1) to enforce Tailscale security isolation
     ports:
-      - "127.0.0.1:${API_PORT:-8000}:8000"
+      - "127.0.0.1:${BACKEND_PORT:-8000}:8000"
 
-  web:
-    build: ./web
-    container_name: pocket-web
+  frontend:
+    build: ./frontend
+    container_name: pocket-frontend
     restart: unless-stopped
     ports:
       # Bound to loopback: Tailscale Serve forwards encrypted tailnet traffic here
-      - "127.0.0.1:${WEB_PORT:-80}:80"
+      - "127.0.0.1:${FRONTEND_PORT:-80}:80"
       # Dedicated endpoint for Tailscale Funnel public file downloads
       - "127.0.0.1:${SHARE_PORT:-8080}:8080"
     depends_on:

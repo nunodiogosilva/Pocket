@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pocket-backend"
+version = "0.1.0"
+description = "Pocket: self-hosted personal cloud storage with Tailscale Identity and sqlite-vec semantic search"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Pocket Contributors" }]
+dependencies = [
+    "fastapi",
+    "uvicorn[standard]",
+    "python-multipart",
+    "sqlmodel>=0.0.48",
+    "pydantic-settings>=2.0",
+    "sqlite-vec>=0.1.9",
+    "sqlean.py",
+    "numpy",
+    "sentence-transformers>=2.2",
+    "pypdf",
+    "httpx",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "httpx"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["app*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+# Help the language server resolve the top-level ``app`` package, which lives in
+# this directory (backend/) and is run with backend/ on sys.path.
+[tool.pyright]
+include = ["app", "tests"]
+extraPaths = ["."]

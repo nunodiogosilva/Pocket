@@ -1,0 +1,24 @@
+# Core API
+fastapi
+uvicorn[standard]
+python-multipart
+sqlmodel>=0.0.48
+pydantic-settings>=2.0
+
+# Database + vector search
+sqlite-vec>=0.1.9
+sqlean.py
+# numpy must stay <2: the pinned torch 2.2.2 / transformers 4.46.3 combo breaks on numpy 2.x
+numpy<2
+
+# Semantic search (sentence-transformers pulls in torch)
+# Pinned to the verified-working stack: torch 2.2.2 + transformers 4.46.3.
+# Newer transformers (>=5) require PyTorch >= 2.6 and fail to import.
+sentence-transformers==3.3.1
+transformers==4.46.3
+torch==2.2.2
+pypdf
+
+# HTTP / testing
+httpx
+pytest

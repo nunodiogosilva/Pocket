@@ -1,0 +1,2374 @@
+<!-- Hidden file and folder input elements -->
+<input #fileInput type="file" multiple class="hidden" (change)="onFilesSelected(fileInput)" />
+<input #folderInput type="file" webkitdirectory directory multiple class="hidden"
+  (change)="onFolderSelected(folderInput)" />
+
+<!-- Sidebar (Google Drive style clean navigation) -->
+<aside class="hidden min-h-0 w-64 shrink-0 flex-col gap-4 overflow-y-auto overflow-x-hidden px-3 pt-4 pb-3 md:flex">
+  <!-- Navigation Sections -->
+  <nav aria-label="Sections" class="flex flex-col gap-1">
+    <!-- My Pocket Button -->
+    <div class="flex items-center">
+      <button type="button"
+        class="flex w-full min-w-0 items-center gap-2 rounded-full px-4 py-2.5 text-sm transition cursor-pointer"
+        [class.bg-[#c2e7ff]]="activeTab() === 'pocket' && !isPocketDropTarget()"
+        [class.text-[#001d35]]="activeTab() === 'pocket' && !isPocketDropTarget()"
+        [class.font-semibold]="activeTab() === 'pocket' && !isPocketDropTarget()"
+        [class.text-slate-700]="activeTab() !== 'pocket' && !isPocketDropTarget()"
+        [class.hover:bg-slate-100]="activeTab() !== 'pocket' && !isPocketDropTarget()"
+        [class.ring-2]="isPocketDropTarget()"
+        [class.ring-blue-500]="isPocketDropTarget()"
+        [class.bg-blue-50]="isPocketDropTarget()"
+        (dragover)="onPocketTreeDragOver($event)"
+        (dragleave)="onPocketTreeDragLeave()"
+        (drop)="onPocketTreeDrop($event)"
+        (click)="selectTab('pocket')">
+        <span class="grid size-7 shrink-0 place-items-center rounded-md text-slate-500 hover:bg-slate-200"
+          [attr.aria-expanded]="pocketTreeOpen()" aria-label="Toggle My Pocket folders"
+          aria-controls="my-pocket-folder-tree"
+          [title]="pocketTreeOpen() ? 'Hide My Pocket folders' : 'Show My Pocket folders'"
+          (click)="$event.stopPropagation(); togglePocketTree()">
+          <svg class="size-3.5 transition-transform" [class.-rotate-90]="!pocketTreeOpen()" viewBox="0 0 24 24"
+            fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m6 9 6 6 6-6" />
+          </svg>
+        </span>
+        <svg class="size-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linejoin="round" aria-hidden="true">
+          <path d="M4 14 6.5 5h11L20 14" />
+          <rect x="3" y="14" width="18" height="6" rx="2" />
+          <path d="M7 17h.01" stroke-linecap="round" />
+        </svg>
+        <span class="truncate">My Pocket</span>
+      </button>
+    </div>
+
+    <!-- Show on every tab so the tree can be navigated from, and so it stays
+         expanded across tab switches (state is kept in the reused component). -->
+    @if (pocketTreeOpen() && sidebarFolders().length > 0) {
+    <div id="my-pocket-folder-tree" class="ml-5 flex flex-col gap-0.5 pl-2" aria-label="My Pocket folders">
+      @for (row of sidebarFolderRows(); track row.folder.id) {
+      <div class="flex min-w-0 items-center gap-0.5 rounded-lg transition"
+        [style.margin-left.px]="row.depth * 12"
+        [class.opacity-50]="invalidSidebarDropFolderIds().has(row.folder.id)"
+        [class.cursor-not-allowed]="invalidSidebarDropFolderIds().has(row.folder.id)"
+        [class.bg-slate-100]="dragOverFileId() === row.folder.id"
+        [class.ring-2]="dragOverFolderId() === row.folder.id || dragOverFileId() === row.folder.id"
+        [class.ring-blue-500]="dragOverFolderId() === row.folder.id"
+        [class.ring-slate-300]="dragOverFileId() === row.folder.id"
+        [class.bg-slate-200]="dragOverFolderId() === row.folder.id"
+        (dragover)="onSidebarFolderDragOver($event, row.folder)"
+        (dragleave)="onFolderDragLeave($event, row.folder)"
+        (drop)="onSidebarFolderDrop($event, row.folder)">
+        <button type="button" class="grid size-7 shrink-0 place-items-center rounded-md text-slate-500 hover:bg-slate-200"
+          [class.pointer-events-none]="invalidSidebarDropFolderIds().has(row.folder.id)"
+          [attr.aria-expanded]="expandedSidebarFolderIds().has(row.folder.id)"
+          [attr.aria-label]="(expandedSidebarFolderIds().has(row.folder.id) ? 'Collapse ' : 'Expand ') + row.folder.filename"
+          (click)="toggleSidebarFolder(row.folder, $event)">
+          <svg class="size-3.5 transition-transform" [class.rotate-90]="expandedSidebarFolderIds().has(row.folder.id)"
+            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m9 18 6-6-6-6" />
+          </svg>
+        </button>
+        <button type="button" class="flex min-w-0 flex-1 items-center gap-2 rounded-md px-1.5 py-2 text-left text-xs text-slate-700"
+          [class.text-slate-400]="invalidSidebarDropFolderIds().has(row.folder.id)"
+          [class.hover:bg-slate-100]="!invalidSidebarDropFolderIds().has(row.folder.id)"
+          [class.text-blue-700]="dragOverFolderId() === row.folder.id"
+          (click)="navigateToFolder(row.folder)"
+          [title]="'Open or drop items into ' + row.folder.filename">
+          <app-file-icon [isFolder]="true" size="sm" customClass="shrink-0" />
+          <span class="truncate">{{ row.folder.filename }}</span>
+        </button>
+      </div>
+      }
+    </div>
+    }
+
+    <!-- Shared Pockets Button (Shared with me) -->
+    <button type="button"
+      class="flex w-full items-center gap-2 rounded-full px-4 py-2.5 text-sm transition cursor-pointer"
+      [class.bg-[#c2e7ff]]="activeTab() === 'shared'" [class.text-[#001d35]]="activeTab() === 'shared'"
+      [class.font-semibold]="activeTab() === 'shared'" [class.text-slate-700]="activeTab() !== 'shared'"
+      [class.hover:bg-slate-100]="activeTab() !== 'shared'" (click)="selectTab('shared')">
+      <span class="size-7 shrink-0" aria-hidden="true"></span>
+      <svg class="size-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+        <circle cx="9" cy="7" r="4" />
+        <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+      </svg>
+      <span>Shared Pockets</span>
+    </button>
+
+    <!-- Bin (Recycle Bin) Button -->
+    <button type="button"
+      class="flex w-full items-center gap-2 rounded-full px-4 py-2.5 text-sm transition cursor-pointer"
+      [class.bg-[#c2e7ff]]="activeTab() === 'bin'" [class.text-[#001d35]]="activeTab() === 'bin'"
+      [class.bg-slate-200]="isBinDropTarget()"
+      [class.ring-2]="isBinDropTarget()"
+      [class.ring-red-600]="isBinDropTarget()"
+      [class.text-red-600]="isBinDropTarget()"
+      [class.font-semibold]="activeTab() === 'bin' || isBinDropTarget()" [class.text-slate-700]="activeTab() !== 'bin' && !isBinDropTarget()"
+      [class.hover:bg-slate-100]="activeTab() !== 'bin'"
+      (dragover)="onBinDragOver($event)"
+      (dragleave)="onBinDragLeave($event)"
+      (drop)="onBinDrop($event)"
+      (click)="selectTab('bin')">
+      <span class="size-7 shrink-0" aria-hidden="true"></span>
+      <svg class="size-5 shrink-0" [class.text-red-600]="isBinDropTarget()" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M3 6h18m-2 0v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+      </svg>
+      <span>Bin</span>
+    </button>
+  </nav>
+
+  <!-- Storage Usage Widget at bottom of sidebar -->
+  <div class="mt-auto mb-2 rounded-2xl bg-slate-50 p-3.5 border border-slate-200/80 shadow-2xs">
+    <div class="flex items-center justify-between text-xs font-semibold text-slate-800 mb-2">
+      <div class="flex items-center gap-2">
+        <svg class="size-4 text-blue-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242" />
+          <path d="M12 12v9" />
+        </svg>
+        <span>Storage</span>
+      </div>
+      <span class="text-[11px] font-mono font-medium text-slate-500">{{ storagePercent() }}%</span>
+    </div>
+    <!-- Progress bar -->
+    <div class="h-1.5 w-full overflow-hidden rounded-full bg-slate-200 mb-2" role="progressbar"
+      [attr.aria-valuenow]="storagePercent()" aria-valuemin="0" aria-valuemax="100">
+      <div class="h-full rounded-full transition-all duration-300" [class.bg-blue-600]="storagePercent() < 80"
+        [class.bg-amber-500]="storagePercent() >= 80 && storagePercent() < 95"
+        [class.bg-red-600]="storagePercent() >= 95" [style.width.%]="storagePercent()"></div>
+    </div>
+    <div class="flex items-center justify-between text-[11px] text-slate-500">
+      <span>{{ formatSize(storageUsed()) }} of {{ formatSize(storageTotal()) }}</span>
+    </div>
+    <p class="mt-1 text-[10px] text-slate-400">
+      {{ storage.value()?.file_count || 0 }} files, {{ storage.value()?.folder_count || 0 }} folders
+    </p>
+  </div>
+</aside>
+
+<!-- Main File area with drag-and-drop support -->
+<main
+  class="relative flex min-w-0 flex-1 flex-col overflow-hidden bg-white md:mr-4 md:mb-4 md:rounded-2xl shadow-sm border border-slate-200/60"
+  (dragover)="onDragOver($event)" (dragleave)="onDragLeave($event)" (drop)="onDrop($event)"
+  (click)="closeAllDropdowns()">
+  <!-- Drag-and-drop Visual Overlay (external file upload only) -->
+  @if (isDraggingOver() && !draggedItem()) {
+  <div
+    class="absolute inset-0 z-40 flex flex-col items-center justify-center bg-blue-50/90 backdrop-blur-xs border-2 border-dashed border-blue-500 rounded-2xl m-2 pointer-events-none animate-in fade-in duration-150">
+    <div class="size-16 rounded-2xl bg-blue-600 text-white flex items-center justify-center mb-3 shadow-lg">
+      <svg class="size-9 animate-bounce" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242" />
+        <path d="M12 12v9" />
+        <path d="m16 16-4-4-4 4" />
+      </svg>
+    </div>
+    <p class="text-base font-bold text-blue-900">Drop folders or files to upload</p>
+    <p class="text-xs text-blue-700 mt-1">Directory structures will be automatically preserved</p>
+  </div>
+  }
+
+  <!-- Header Toolbar -->
+  <div class="flex flex-col gap-2.5 px-4 pt-4 pb-3 md:px-6 border-b border-slate-100">
+    <div class="flex items-center justify-between gap-3">
+      <!-- Title & Breadcrumbs -->
+      @if (searchQuery()) {
+      <div class="flex min-w-0 flex-1 items-center gap-2">
+        <h1 class="min-w-0 truncate text-xl font-bold text-slate-800">
+          Results for "{{ searchQuery() }}"
+        </h1>
+        <button type="button" class="rounded-full px-2 py-0.5 text-xs text-blue-600 hover:bg-blue-50 cursor-pointer"
+          (click)="searchQuery.set('')">
+          Clear search
+        </button>
+      </div>
+      } @else if (activeTab() === 'bin') {
+      <div class="flex min-w-0 flex-1 items-center gap-3">
+        <div class="flex items-center gap-2">
+          <svg class="size-5 text-slate-700 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 6h18m-2 0v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+          </svg>
+          <h1 class="text-xl font-bold text-slate-800">Bin</h1>
+        </div>
+      </div>
+      } @else if (activeTab() === 'shared') {
+      <div class="flex min-w-0 flex-1 items-center gap-2">
+        <svg class="size-5 text-slate-700 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+          <circle cx="9" cy="7" r="4" />
+          <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+          <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+        </svg>
+        <nav aria-label="Breadcrumb" class="flex min-w-0 flex-1 items-center gap-1 text-xl font-bold text-slate-800">
+          <button type="button" class="shrink-0 rounded-lg px-2.5 py-1 hover:bg-[#f0f4f9] transition cursor-pointer"
+            (click)="goTo(0)">
+            <span>Shared Pockets</span>
+          </button>
+          @for (folder of path(); track folder.id; let i = $index) {
+          <span class="text-[#444746]" aria-hidden="true">›</span>
+          <button type="button" class="truncate rounded-lg px-2.5 py-1 hover:bg-[#f0f4f9] transition cursor-pointer"
+            (click)="goTo(i + 1)">
+            <span>{{ folder.filename }}</span>
+          </button>
+          }
+        </nav>
+      </div>
+      } @else {
+      <!-- Google Drive styled breadcrumb / title with icon for My Pocket -->
+      <div class="flex min-w-0 flex-1 items-center gap-2">
+        <svg class="size-5 text-slate-700 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linejoin="round" aria-hidden="true">
+          <path d="M4 14 6.5 5h11L20 14" />
+          <rect x="3" y="14" width="18" height="6" rx="2" />
+          <path d="M7 17h.01" stroke-linecap="round" />
+        </svg>
+        <nav aria-label="Breadcrumb" class="flex min-w-0 flex-1 items-center gap-1 text-xl font-bold text-slate-800">
+          @if (path().length > 0) {
+          <button type="button"
+            class="flex items-center gap-1.5 rounded-lg px-2.5 py-1 hover:bg-[#f0f4f9] transition cursor-pointer"
+            (click)="goTo(0)">
+            <span>My Pocket</span>
+          </button>
+          }
+          @for (folder of path(); track folder.id; let i = $index) {
+          @if (i === path().length - 1) {
+          <span class="text-[#444746]" aria-hidden="true">›</span>
+          <div class="relative flex items-center gap-1">
+            <button type="button"
+              class="flex items-center gap-1 truncate rounded-lg px-2.5 py-1 hover:bg-[#f0f4f9] transition cursor-pointer"
+              (click)="goTo(i + 1)">
+              <span class="truncate">{{ folder.filename }}</span>
+            </button>
+            <button type="button"
+              class="grid size-6 place-items-center rounded-md transition cursor-pointer hover:bg-[#f0f4f9]"
+              [title]="breadcrumbMenuOpen() ? 'Close' : 'New'" aria-haspopup="menu"
+              [attr.aria-expanded]="breadcrumbMenuOpen()"
+              (click)="$event.stopPropagation(); breadcrumbMenuOpen.update(v => !v)">
+              <svg class="size-4 text-[#444746] transition-transform" [class.rotate-180]="breadcrumbMenuOpen()"
+                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <path d="m6 9 6 6 6-6" />
+              </svg>
+            </button>
+            @if (breadcrumbMenuOpen()) {
+            <div
+              class="absolute left-0 top-full mt-2 w-56 rounded-2xl bg-white p-2 shadow-2xl border border-slate-200 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
+              <button type="button"
+                class="flex w-full items-center gap-3 rounded-xl px-3.5 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+                (click)="folderInput.click(); breadcrumbMenuOpen.set(false)">
+                <svg class="size-5 text-slate-700" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M3 6a2 2 0 0 1 2-2h4.17a2 2 0 0 1 1.42.59L12 6h7a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                </svg>
+                <span>Upload folder</span>
+              </button>
+              <button type="button"
+                class="flex w-full items-center gap-3 rounded-xl px-3.5 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+                (click)="fileInput.click(); breadcrumbMenuOpen.set(false)">
+                <svg class="size-5 text-blue-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                  <line x1="12" y1="18" x2="12" y2="12" />
+                  <line x1="9" y1="15" x2="15" y2="15" />
+                </svg>
+                <span>Upload files</span>
+              </button>
+              <div class="my-1 border-t border-slate-100"></div>
+              <button type="button"
+                class="flex w-full items-center gap-3 rounded-xl px-3.5 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+                (click)="newFolderOpen.set(true); breadcrumbMenuOpen.set(false)">
+                <svg class="size-5 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                  <line x1="12" y1="11" x2="12" y2="17" />
+                  <line x1="9" y1="14" x2="15" y2="14" />
+                </svg>
+                <span>New folder</span>
+              </button>
+            </div>
+            }
+          </div>
+          } @else {
+          <span class="text-[#444746]" aria-hidden="true">›</span>
+          <button type="button"
+            class="flex items-center gap-1 truncate rounded-lg px-2.5 py-1 hover:bg-[#f0f4f9] transition cursor-pointer"
+            (click)="goTo(i + 1)">
+            <span class="truncate">{{ folder.filename }}</span>
+          </button>
+          }
+          }
+          @if (path().length === 0) {
+          <div class="relative flex items-center gap-1">
+            <button type="button"
+              class="flex items-center gap-1.5 rounded-lg px-2.5 py-1 hover:bg-[#f0f4f9] transition cursor-pointer"
+              (click)="goTo(0)">
+              <span>My Pocket</span>
+            </button>
+            <button type="button"
+              class="grid size-6 place-items-center rounded-md transition cursor-pointer hover:bg-[#f0f4f9]"
+              [title]="breadcrumbMenuOpen() ? 'Close' : 'New'" aria-haspopup="menu"
+              [attr.aria-expanded]="breadcrumbMenuOpen()"
+              (click)="$event.stopPropagation(); breadcrumbMenuOpen.update(v => !v)">
+              <svg class="size-4 text-[#444746] transition-transform" [class.rotate-180]="breadcrumbMenuOpen()"
+                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <path d="m6 9 6 6 6-6" />
+              </svg>
+            </button>
+            @if (breadcrumbMenuOpen()) {
+            <div
+              class="absolute left-0 top-full mt-2 w-56 rounded-2xl bg-white p-2 shadow-2xl border border-slate-200 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
+              <button type="button"
+                class="flex w-full items-center gap-3 rounded-xl px-3.5 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+                (click)="folderInput.click(); breadcrumbMenuOpen.set(false)">
+                <svg class="size-5 text-slate-700" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M3 6a2 2 0 0 1 2-2h4.17a2 2 0 0 1 1.42.59L12 6h7a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                </svg>
+                <span>Upload folder</span>
+              </button>
+              <button type="button"
+                class="flex w-full items-center gap-3 rounded-xl px-3.5 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+                (click)="fileInput.click(); breadcrumbMenuOpen.set(false)">
+                <svg class="size-5 text-blue-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                  <line x1="12" y1="18" x2="12" y2="12" />
+                  <line x1="9" y1="15" x2="15" y2="15" />
+                </svg>
+                <span>Upload files</span>
+              </button>
+              <div class="my-1 border-t border-slate-100"></div>
+              <button type="button"
+                class="flex w-full items-center gap-3 rounded-xl px-3.5 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+                (click)="newFolderOpen.set(true); breadcrumbMenuOpen.set(false)">
+                <svg class="size-5 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                  <line x1="12" y1="11" x2="12" y2="17" />
+                  <line x1="9" y1="14" x2="15" y2="14" />
+                </svg>
+                <span>New folder</span>
+              </button>
+            </div>
+            }
+          </div>
+          }
+        </nav>
+      </div>
+      }
+
+      <!-- Toolbar Right: Empty Bin + View Switcher -->
+      <div class="flex items-center gap-2 shrink-0">
+        <!-- Empty Bin button when inside Bin -->
+        @if (activeTab() === 'bin' && totalItems() > 0) {
+        <button type="button"
+          class="flex items-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-100 transition cursor-pointer"
+          (click)="emptyBinConfirmOpen.set(true)">
+          <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 6h18m-2 0v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+          </svg>
+          <span>Empty Bin</span>
+        </button>
+        }
+
+        <!-- Segmented Toggle Button (List View vs Grid View) -->
+        <div class="flex items-center rounded-full border border-slate-300/80 bg-white p-0.5 shadow-2xs">
+          <!-- List View Button -->
+          <button type="button"
+            class="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition cursor-pointer"
+            [class.bg-[#c2e7ff]]="viewMode() === 'list'" [class.text-[#001d35]]="viewMode() === 'list'"
+            [class.font-semibold]="viewMode() === 'list'" [class.text-slate-600]="viewMode() !== 'list'"
+            [class.hover:text-slate-900]="viewMode() !== 'list'" (click)="setViewMode('list')" title="List view"
+            aria-label="List view">
+            @if (viewMode() === 'list') {
+            <svg class="size-3.5 text-[#001d35]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"
+              stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+            }
+            <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="8" x2="21" y1="6" y2="6" />
+              <line x1="8" x2="21" y1="12" y2="12" />
+              <line x1="8" x2="21" y1="18" y2="18" />
+              <line x1="3" x2="3.01" y1="6" y2="6" />
+              <line x1="3" x2="3.01" y1="12" y2="12" />
+              <line x1="3" x2="3.01" y1="18" y2="18" />
+            </svg>
+          </button>
+
+          <!-- Grid View Button -->
+          <button type="button"
+            class="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition cursor-pointer"
+            [class.bg-[#c2e7ff]]="viewMode() === 'grid'" [class.text-[#001d35]]="viewMode() === 'grid'"
+            [class.font-semibold]="viewMode() === 'grid'" [class.text-slate-600]="viewMode() !== 'grid'"
+            [class.hover:text-slate-900]="viewMode() !== 'grid'" (click)="setViewMode('grid')" title="Grid view"
+            aria-label="Grid view">
+            @if (viewMode() === 'grid') {
+            <svg class="size-3.5 text-[#001d35]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"
+              stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+            }
+            <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect width="7" height="7" x="3" y="3" rx="1.5" />
+              <rect width="7" height="7" x="14" y="3" rx="1.5" />
+              <rect width="7" height="7" x="14" y="14" rx="1.5" />
+              <rect width="7" height="7" x="3" y="14" rx="1.5" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Content Container -->
+  <div class="min-h-0 flex-1 overflow-y-auto px-4 pb-20 md:px-6">
+    @if (content.error()) {
+    <div class="flex flex-col items-center gap-3 py-16 text-center" role="alert">
+      <p class="text-slate-700">Couldn't load items.</p>
+      <button type="button"
+        class="rounded-full border border-[#747775] px-4 py-2 text-sm font-medium text-[#0b57d0] hover:bg-[#f0f4f9] cursor-pointer"
+        (click)="content.reload()">
+        Try again
+      </button>
+    </div>
+    } @else if (content.hasValue()) {
+    <!-- ============================================================== -->
+    <!-- TAB 1: MY POCKET (Google Drive List & Grid View)              -->
+    <!-- ============================================================== -->
+    @if (activeTab() === 'pocket') {
+    @if (displayItems().length > 0) {
+    <!-- Google Drive List View -->
+    @if (viewMode() === 'list') {
+    <div class="mt-2 mb-6">
+      <table class="w-full table-fixed text-left text-sm border-separate border-spacing-0">
+        <thead class="sticky top-0 bg-white text-[#444746] z-10 select-none">
+          <tr class="border-b border-slate-200/80 text-xs font-medium">
+            <!-- Name Column -->
+            <th class="px-4 py-3 text-left font-medium text-slate-700 cursor-pointer hover:text-slate-900 group/th select-none"
+              (click)="toggleSort('name')" title="Sort by Name">
+              <div class="flex items-center gap-1.5">
+                <span>Name</span>
+                @if (sortColumn() === 'name') {
+                  @if (sortDirection() === 'asc') {
+                  <svg class="size-3.5 text-blue-600 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-label="Sorted ascending">
+                    <path d="M12 19V5m-7 7 7-7 7 7" />
+                  </svg>
+                  } @else {
+                  <svg class="size-3.5 text-blue-600 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-label="Sorted descending">
+                    <path d="M12 5v14m7-7-7 7-7-7" />
+                  </svg>
+                  }
+                } @else {
+                <svg class="size-3 text-slate-300 opacity-0 group-hover/th:opacity-100 transition-opacity shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="m7 15 5 5 5-5M7 9l5-5 5 5" />
+                </svg>
+                }
+              </div>
+            </th>
+
+            <!-- Modified Column (renamed from Last modified) -->
+            <th
+              class="hidden md:table-cell w-44 px-4 py-3 text-left font-medium text-slate-700 cursor-pointer hover:text-slate-900 group/th select-none"
+              (click)="toggleSort('modified')" title="Sort by Modified">
+              <div class="flex items-center gap-1.5">
+                <span>Modified</span>
+                @if (sortColumn() === 'modified') {
+                  @if (sortDirection() === 'asc') {
+                  <svg class="size-3.5 text-blue-600 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-label="Sorted ascending">
+                    <path d="M12 19V5m-7 7 7-7 7 7" />
+                  </svg>
+                  } @else {
+                  <svg class="size-3.5 text-blue-600 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-label="Sorted descending">
+                    <path d="M12 5v14m7-7-7 7-7-7" />
+                  </svg>
+                  }
+                } @else {
+                <svg class="size-3 text-slate-400 opacity-0 group-hover/th:opacity-100 transition-opacity shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="m7 15 5 5 5-5M7 9l5-5 5 5" />
+                </svg>
+                }
+              </div>
+            </th>
+
+            <!-- Size Column (renamed from File size) -->
+            <th
+              class="hidden lg:table-cell w-36 px-4 py-3 text-left font-medium text-slate-700 cursor-pointer hover:text-slate-900 group/th select-none"
+              (click)="toggleSort('size')" title="Sort by Size">
+              <div class="flex items-center gap-1.5">
+                <span>Size</span>
+                @if (sortColumn() === 'size') {
+                  @if (sortDirection() === 'asc') {
+                  <svg class="size-3.5 text-blue-600 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-label="Sorted ascending">
+                    <path d="M12 19V5m-7 7 7-7 7 7" />
+                  </svg>
+                  } @else {
+                  <svg class="size-3.5 text-blue-600 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-label="Sorted descending">
+                    <path d="M12 5v14m7-7-7 7-7-7" />
+                  </svg>
+                  }
+                } @else {
+                <svg class="size-3 text-slate-400 opacity-0 group-hover/th:opacity-100 transition-opacity shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="m7 15 5 5 5-5M7 9l5-5 5 5" />
+                </svg>
+                }
+              </div>
+            </th>
+
+            <!-- Header Right Actions column -->
+            <th class="w-14 px-2 py-3 text-right">
+              <span class="sr-only">Actions</span>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (item of displayItems(); track item.id) {
+          <tr class="border-b border-slate-100 hover:bg-[#f2f6fc] group transition cursor-pointer select-none"
+            [class.bg-[#e8f0fe]]="isItemSelected(item.id) && dragOverFolderId() !== item.id && dragOverFileId() !== item.id"
+            [class.bg-slate-200]="isItemBeingMoved(item.id)"
+            [class.opacity-70]="isItemBeingMoved(item.id)"
+            [class.bg-blue-100]="item.is_folder && dragOverFolderId() === item.id"
+            [class.folder-drop-target]="item.is_folder && dragOverFolderId() === item.id"
+            [class.ring-2]="!item.is_folder && dragOverFileId() === item.id"
+            [class.bg-slate-100]="!item.is_folder && dragOverFileId() === item.id"
+            [class.ring-slate-300]="!item.is_folder && dragOverFileId() === item.id"
+            [class.cursor-not-allowed]="!item.is_folder && dragOverFileId() === item.id"
+            [draggable]="activeTab() !== 'bin'"
+            (dragstart)="onItemDragStart($event, item)"
+            (dragend)="onItemDragEnd()"
+            (dragover)="item.is_folder ? onFolderDragOver($event, item) : onFileDragOver($event, item)"
+            (dragleave)="item.is_folder ? onFolderDragLeave($event, item) : onFileDragLeave($event, item)"
+            (drop)="item.is_folder ? onFolderDrop($event, item) : onFileDrop($event, item)"
+            (click)="selectItem(item, $event)"
+            (dblclick)="item.is_folder ? openFolder(item) : openPreview(item)">
+            <!-- Name Column -->
+            <td class="px-4 py-3" (click)="onItemNameClick(item, $event)">
+              <div class="flex min-w-0 items-center gap-3">
+                <app-file-icon [filename]="item.filename" [mimeType]="item.mime_type" [isFolder]="item.is_folder"
+                  size="md" customClass="shrink-0 size-5" />
+                <span class="truncate text-sm font-medium text-[#1f1f1f] group-hover:text-blue-700"
+                  [class.text-slate-500]="!item.is_folder && dragOverFileId() === item.id"
+                  [title]="item.filename">
+                  {{ item.filename }}
+                </span>
+                @if (isSharedItem(item)) {
+                <span title="Shared" class="shrink-0 text-slate-500">
+                  <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                    <circle cx="9" cy="7" r="4" />
+                    <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                  </svg>
+                </span>
+                }
+              </div>
+            </td>
+
+            <!-- Modified Column -->
+            <td class="hidden md:table-cell px-4 py-3 text-xs text-[#444746] whitespace-nowrap">
+              {{ formatGoogleDriveDate(item.deleted_at || item.created_at) }}
+            </td>
+
+            <!-- Size Column -->
+            <td class="hidden lg:table-cell px-4 py-3 text-xs text-[#444746] whitespace-nowrap font-mono">
+              {{ formatSize(item.file_size) }}
+            </td>
+
+            <!-- Action Dropdown Column -->
+            <td class="px-2 py-3 text-right relative whitespace-nowrap" (click)="$event.stopPropagation()">
+              <div class="flex items-center justify-end">
+                <button type="button"
+                  class="rounded-full p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-200/80 transition cursor-pointer"
+                  title="More options" (click)="toggleDropdown(item.id, $event)">
+                  <svg class="size-4" viewBox="0 0 24 24" fill="currentColor">
+                    <circle cx="12" cy="5" r="1.5" />
+                    <circle cx="12" cy="12" r="1.5" />
+                    <circle cx="12" cy="19" r="1.5" />
+                  </svg>
+                </button>
+              </div>
+
+              <!-- Kebab Action Dropdown Menu -->
+              @if (openDropdownId() === item.id) {
+              <div
+                class="absolute right-2 top-full mt-1 w-48 rounded-xl bg-white py-1.5 shadow-2xl border border-slate-200 z-30 text-left animate-in fade-in zoom-in-95 duration-100">
+                @if (!item.is_folder) {
+                <button type="button"
+                  class="flex w-full items-center gap-2.5 px-3.5 py-2 text-xs text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+                  (click)="openPreview(item); closeAllDropdowns()">
+                  <svg class="size-4 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="2">
+                    <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+                    <circle cx="12" cy="12" r="3" />
+                  </svg>
+                  <span>Preview</span>
+                </button>
+                }
+                <a [href]="getDownloadUrl(item)" download
+                  class="flex w-full items-center gap-2.5 px-3.5 py-2 text-xs text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+                  (click)="closeAllDropdowns()">
+                  <svg class="size-4 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                  </svg>
+                  <span>Download</span>
+                </a>
+                <button type="button"
+                  class="flex w-full items-center gap-2.5 px-3.5 py-2 text-xs text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+                  (click)="startRename(item); closeAllDropdowns()">
+                  <svg class="size-4 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="2">
+                    <path d="M12 20h9" />
+                    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                  </svg>
+                  <span>Rename</span>
+                </button>
+                <button type="button"
+                  class="flex w-full items-center gap-2.5 px-3.5 py-2 text-xs text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+                  (click)="shareTarget.set(item); closeAllDropdowns()">
+                  <svg class="size-4 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="2">
+                    <path d="M10 13a5 5 0 0 0 7.07 0l3-3a5 5 0 0 0-7.07-7.07l-1.5 1.5" />
+                    <path d="M14 11a5 5 0 0 0-7.07 0l-3 3a5 5 0 0 0 7.07 7.07l1.5-1.5" />
+                  </svg>
+                  <span>Share</span>
+                </button>
+                <div class="my-1 border-t border-slate-100"></div>
+                <button type="button"
+                  class="flex w-full items-center gap-2.5 px-3.5 py-2 text-xs text-red-600 hover:bg-red-50 transition cursor-pointer"
+                  (click)="deleteConfirmTarget.set(item); closeAllDropdowns()">
+                  <svg class="size-4 text-red-600" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="2">
+                    <path d="M3 6h18m-2 0v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                  </svg>
+                  <span>Move to bin</span>
+                </button>
+              </div>
+              }
+            </td>
+          </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    } @else {
+    <!-- Google Drive Grid View (Folders on top, files below, WITHOUT <h2> headings) -->
+    <div class="flex flex-col gap-6 pt-4 pb-6">
+      <!-- Folders Section -->
+      @if (displayFolders().length > 0) {
+      <div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+          @for (item of displayFolders(); track item.id) {
+          <div
+            class="group relative flex items-center justify-between rounded-xl border border-slate-200/90 bg-[#f8fafd] p-3 hover:bg-white hover:border-slate-300 hover:shadow-md transition cursor-pointer"
+            [class.bg-[#e8f0fe]]="isItemSelected(item.id)"
+            [class.bg-slate-200]="isItemBeingMoved(item.id)"
+            [class.opacity-70]="isItemBeingMoved(item.id)"
+            [class.bg-blue-100]="dragOverFolderId() === item.id"
+            [class.folder-drop-target]="dragOverFolderId() === item.id"
+            [draggable]="activeTab() !== 'bin'"
+            (dragstart)="onItemDragStart($event, item)"
+            (dragend)="onItemDragEnd()"
+            (dragover)="onFolderDragOver($event, item)"
+            (dragleave)="onFolderDragLeave($event, item)"
+            (drop)="onFolderDrop($event, item)"
+            (click)="onFolderCardClick(item, $event)"
+            (dblclick)="openFolder(item)">
+            <div class="flex items-center gap-3 min-w-0 flex-1">
+              <app-file-icon [isFolder]="true" size="md" customClass="shrink-0 size-6" />
+              <div class="flex flex-col min-w-0">
+                <span class="truncate text-xs font-medium text-slate-800 group-hover:text-blue-700"
+                  [title]="item.filename">
+                  {{ item.filename }}
+                </span>
+                <span class="text-[10px] text-slate-400 font-mono">{{ formatSize(item.file_size) }}</span>
+              </div>
+            </div>
+
+            <!-- Kebab menu button -->
+            <button type="button"
+              class="rounded-full p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-200/70 transition shrink-0 ml-1 cursor-pointer"
+              (click)="toggleDropdown(item.id, $event)">
+              <svg class="size-4" viewBox="0 0 24 24" fill="currentColor">
+                <circle cx="12" cy="5" r="1.5" />
+                <circle cx="12" cy="12" r="1.5" />
+                <circle cx="12" cy="19" r="1.5" />
+              </svg>
+            </button>
+
+            <!-- Dropdown Menu -->
+            @if (openDropdownId() === item.id) {
+            <div
+              class="absolute right-2 top-full mt-1 w-48 rounded-xl bg-white py-1.5 shadow-2xl border border-slate-200 z-30 text-left animate-in fade-in zoom-in-95 duration-100"
+              (click)="$event.stopPropagation()">
+              <a [href]="getDownloadUrl(item)" download
+                class="flex w-full items-center gap-2.5 px-3.5 py-2 text-xs text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+                (click)="closeAllDropdowns()">
+                <svg class="size-4 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  stroke-width="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+                <span>Download (.zip)</span>
+              </a>
+              <button type="button"
+                class="flex w-full items-center gap-2.5 px-3.5 py-2 text-xs text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+                (click)="startRename(item); closeAllDropdowns()">
+                <svg class="size-4 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  stroke-width="2">
+                  <path d="M12 20h9" />
+                  <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                </svg>
+                <span>Rename</span>
+              </button>
+              <button type="button"
+                class="flex w-full items-center gap-2.5 px-3.5 py-2 text-xs text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+                (click)="shareTarget.set(item); closeAllDropdowns()">
+                <svg class="size-4 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  stroke-width="2">
+                  <path d="M10 13a5 5 0 0 0 7.07 0l3-3a5 5 0 0 0-7.07-7.07l-1.5 1.5" />
+                  <path d="M14 11a5 5 0 0 0-7.07 0l-3 3a5 5 0 0 0 7.07 7.07l1.5-1.5" />
+                </svg>
+                <span>Share</span>
+              </button>
+              <div class="my-1 border-t border-slate-100"></div>
+              <button type="button"
+                class="flex w-full items-center gap-2.5 px-3.5 py-2 text-xs text-red-600 hover:bg-red-50 transition cursor-pointer"
+                (click)="deleteConfirmTarget.set(item); closeAllDropdowns()">
+                <svg class="size-4 text-red-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M3 6h18m-2 0v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                </svg>
+                <span>Move to bin</span>
+              </button>
+            </div>
+            }
+          </div>
+          }
+        </div>
+      </div>
+      }
+
+      <!-- Files Section -->
+      @if (displayFiles().length > 0) {
+      <div>
+        <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+          @for (item of displayFiles(); track item.id) {
+          <div
+            class="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-xs hover:border-blue-400 hover:shadow-lg transition cursor-pointer"
+            [class.ring-2]="isItemSelected(item.id) || dragOverFileId() === item.id"
+            [class.bg-slate-200]="isItemBeingMoved(item.id)"
+            [class.opacity-70]="isItemBeingMoved(item.id)"
+            [class.ring-blue-500]="isItemSelected(item.id) && dragOverFileId() !== item.id"
+            [class.bg-slate-100]="dragOverFileId() === item.id"
+            [class.ring-slate-300]="dragOverFileId() === item.id"
+            [class.border-slate-300]="dragOverFileId() === item.id"
+            [class.cursor-not-allowed]="dragOverFileId() === item.id"
+            [draggable]="activeTab() !== 'bin'"
+            (dragstart)="onItemDragStart($event, item)"
+            (dragend)="onItemDragEnd()"
+            (dragover)="onFileDragOver($event, item)"
+            (dragleave)="onFileDragLeave($event, item)"
+            (drop)="onFileDrop($event, item)"
+            (click)="onFileCardClick(item, $event)"
+            (dblclick)="openPreview(item)">
+            @if (dragOverFileId() === item.id) {
+            <div class="absolute inset-0 z-20 rounded-2xl bg-slate-200/60 pointer-events-none animate-in fade-in duration-100"></div>
+            }
+            <!-- Thumbnail / Icon Header -->
+            <div class="relative h-28 w-full overflow-hidden bg-slate-50/80 flex items-center justify-center">
+              <app-file-icon [filename]="item.filename" [mimeType]="item.mime_type" size="xl"
+                customClass="transition-transform group-hover:scale-110" />
+              <span
+                class="absolute bottom-2 left-2 rounded-md bg-white/90 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-600 shadow-2xs">
+                {{ item.filename.split('.').pop() || 'FILE' }}
+              </span>
+
+              <!-- Kebab action button -->
+              <button type="button"
+                class="absolute top-2 right-2 rounded-full p-1 bg-white/90 text-slate-500 hover:bg-slate-100 shadow-xs transition cursor-pointer"
+                (click)="toggleDropdown(item.id, $event)">
+                <svg class="size-4" viewBox="0 0 24 24" fill="currentColor">
+                  <circle cx="12" cy="5" r="1.5" />
+                  <circle cx="12" cy="12" r="1.5" />
+                  <circle cx="12" cy="19" r="1.5" />
+                </svg>
+              </button>
+
+              <!-- Dropdown Menu -->
+              @if (openDropdownId() === item.id) {
+              <div
+                class="absolute right-2 top-10 w-44 rounded-xl bg-white py-1.5 shadow-2xl border border-slate-200 z-30 text-left animate-in fade-in zoom-in-95 duration-100"
+                (click)="$event.stopPropagation()">
+                <button type="button"
+                  class="flex w-full items-center gap-2.5 px-3.5 py-2 text-xs text-slate-700 hover:bg-slate-100 cursor-pointer"
+                  (click)="openPreview(item); closeAllDropdowns()">
+                  <svg class="size-4 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="2">
+                    <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+                    <circle cx="12" cy="12" r="3" />
+                  </svg>
+                  <span>Preview</span>
+                </button>
+                <a [href]="getDownloadUrl(item)" download
+                  class="flex w-full items-center gap-2.5 px-3.5 py-2 text-xs text-slate-700 hover:bg-slate-100 cursor-pointer"
+                  (click)="closeAllDropdowns()">
+                  <svg class="size-4 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                  </svg>
+                  <span>Download</span>
+                </a>
+                <button type="button"
+                  class="flex w-full items-center gap-2.5 px-3.5 py-2 text-xs text-slate-700 hover:bg-slate-100 cursor-pointer"
+                  (click)="startRename(item); closeAllDropdowns()">
+                  <svg class="size-4 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="2">
+                    <path d="M12 20h9" />
+                    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                  </svg>
+                  <span>Rename</span>
+                </button>
+                <button type="button"
+                  class="flex w-full items-center gap-2.5 px-3.5 py-2 text-xs text-slate-700 hover:bg-slate-100 cursor-pointer"
+                  (click)="shareTarget.set(item); closeAllDropdowns()">
+                  <svg class="size-4 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="2">
+                    <path d="M10 13a5 5 0 0 0 7.07 0l3-3a5 5 0 0 0-7.07-7.07l-1.5 1.5" />
+                    <path d="M14 11a5 5 0 0 0-7.07 0l-3 3a5 5 0 0 0 7.07 7.07l1.5-1.5" />
+                  </svg>
+                  <span>Share</span>
+                </button>
+                <div class="my-1 border-t border-slate-100"></div>
+                <button type="button"
+                  class="flex w-full items-center gap-2.5 px-3.5 py-2 text-xs text-red-600 hover:bg-red-50 cursor-pointer"
+                  (click)="deleteConfirmTarget.set(item); closeAllDropdowns()">
+                  <svg class="size-4 text-red-600" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="2">
+                    <path d="M3 6h18m-2 0v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                  </svg>
+                  <span>Move to bin</span>
+                </button>
+              </div>
+              }
+            </div>
+
+            <!-- File Info Footer -->
+            <div class="p-3">
+              <p class="truncate text-xs font-semibold text-slate-800 group-hover:text-blue-700"
+                [title]="item.filename">
+                {{ item.filename }}
+              </p>
+              <div class="mt-2 flex items-center justify-between text-[10px] text-slate-500">
+                <span>{{ formatSize(item.file_size) }}</span>
+                <span>{{ formatGoogleDriveDate(item.deleted_at || item.created_at) }}</span>
+              </div>
+            </div>
+          </div>
+          }
+        </div>
+      </div>
+      }
+    </div>
+    }
+    } @else {
+    <!-- Empty My Pocket State -->
+    @if (searchQuery()) {
+    <div class="flex flex-col items-center gap-2 py-20 text-center text-[#444746]">
+      <p class="text-lg text-[#1f1f1f]">No matching files or folders</p>
+      <p class="text-sm">Try describing what the file is about in other words, or search by exact filename.</p>
+    </div>
+    } @else {
+    <div class="flex flex-col items-center justify-center py-20 text-center">
+      <div class="size-20 rounded-3xl bg-[#f0f4f9] flex items-center justify-center mb-4">
+        <svg class="size-10 text-blue-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242" />
+          <path d="M12 12v9" />
+          <path d="m16 16-4-4-4 4" />
+        </svg>
+      </div>
+      <h2 class="text-base font-semibold text-slate-800 mb-1">No files or folders here yet</h2>
+      <p class="text-xs text-slate-500 max-w-sm mb-6">
+        Use the "+" button at the bottom right to upload files or create a new folder.
+      </p>
+      <div class="flex items-center gap-3">
+        <button type="button"
+          class="flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-blue-700 transition cursor-pointer"
+          (click)="folderInput.click()">
+          <svg class="size-4" viewBox="0 0 24 24" fill="currentColor">
+            <path
+              d="M3 6a2 2 0 0 1 2-2h4.17a2 2 0 0 1 1.42.59L12 6h7a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+          </svg>
+          <span>Upload folder</span>
+        </button>
+        <button type="button"
+          class="flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 transition cursor-pointer"
+          (click)="fileInput.click()">
+          <svg class="size-4 text-blue-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+            <line x1="12" y1="18" x2="12" y2="12" />
+            <line x1="9" y1="15" x2="15" y2="15" />
+          </svg>
+          <span>Upload files</span>
+        </button>
+      </div>
+    </div>
+    }
+    }
+    }
+
+    <!-- ============================================================== -->
+    <!-- TAB 2: SHARED POCKETS (Exactly as previously)                  -->
+    <!-- ============================================================== -->
+    @else if (activeTab() === 'shared') {
+    @if (totalItems() > 0) {
+    @if (viewMode() === 'grid') {
+    <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 pt-4 pb-4">
+      @for (item of items(); track item.id) {
+      @if (item.is_folder) {
+      <!-- Unified Folder Card -->
+      <div
+        class="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-xs hover:border-slate-400 hover:shadow-lg transition cursor-pointer"
+        [class.bg-blue-100]="dragOverFolderId() === item.id"
+        [class.folder-drop-target]="dragOverFolderId() === item.id"
+        [draggable]="activeTab() !== 'bin'"
+        (dragstart)="onItemDragStart($event, item)"
+        (dragend)="onItemDragEnd()"
+        (dragover)="onFolderDragOver($event, item)"
+        (dragleave)="onFolderDragLeave($event, item)"
+        (drop)="onFolderDrop($event, item)"
+        (click)="onFolderCardClick(item, $event)"
+        (dblclick)="openFolder(item)">
+        <!-- Folder Banner / Icon -->
+        <div class="relative h-28 w-full overflow-hidden bg-slate-100 flex items-center justify-center">
+          <app-file-icon [isFolder]="true" size="xl" customClass="transition-transform group-hover:scale-110" />
+          <span
+            class="absolute bottom-2 left-2 rounded-md bg-white/90 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-700 shadow-2xs">
+            FOLDER
+          </span>
+
+          <!-- Quick Floating Hover Actions -->
+          <div
+            class="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition bg-white/95 backdrop-blur-xs rounded-xl p-1 shadow-sm">
+            <button type="button"
+              class="rounded-lg p-1 text-slate-600 hover:bg-blue-50 hover:text-blue-600 transition cursor-pointer"
+              title="Rename folder" (click)="$event.stopPropagation(); startRename(item)">
+              <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 20h9" />
+                <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+              </svg>
+            </button>
+            <button type="button"
+              class="rounded-lg p-1 text-slate-600 hover:bg-blue-50 hover:text-blue-600 transition cursor-pointer"
+              title="Share folder" (click)="$event.stopPropagation(); shareTarget.set(item)">
+              <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M10 13a5 5 0 0 0 7.07 0l3-3a5 5 0 0 0-7.07-7.07l-1.5 1.5" />
+                <path d="M14 11a5 5 0 0 0-7.07 0l-3 3a5 5 0 0 0 7.07 7.07l1.5-1.5" />
+              </svg>
+            </button>
+            <a [href]="getDownloadUrl(item)" download
+              class="rounded-lg p-1 text-slate-600 hover:bg-slate-100 transition cursor-pointer"
+              title="Download folder as .zip" (click)="$event.stopPropagation()">
+              <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+            </a>
+            <button type="button"
+              class="rounded-lg p-1 text-slate-400 hover:bg-red-50 hover:text-red-600 transition cursor-pointer"
+              title="Move to bin" (click)="$event.stopPropagation(); deleteConfirmTarget.set(item)">
+              <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 6h18m-2 0v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Folder Info -->
+        <div class="p-3">
+          <p class="truncate text-xs font-semibold text-slate-800 group-hover:text-blue-600" [title]="item.filename">
+            {{ item.filename }}
+          </p>
+          <div class="mt-2 flex items-center justify-between text-[10px] text-slate-500">
+            <span class="font-mono font-medium">{{ formatSize(item.file_size) }}</span>
+            <span>{{ (item.deleted_at || item.created_at) | date: 'shortDate' }}</span>
+          </div>
+          @if (item.owner_name || item.owner_login) {
+          <p class="mt-1 truncate text-[10px] text-blue-600">
+            Shared by {{ item.owner_name || item.owner_login }}
+          </p>
+          }
+        </div>
+      </div>
+      } @else {
+      <!-- Unified File Card -->
+      <div
+        class="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-xs hover:border-blue-400 hover:shadow-lg transition cursor-pointer"
+        [class.bg-slate-100]="dragOverFileId() === item.id"
+        [class.ring-2]="dragOverFileId() === item.id"
+        [class.ring-slate-300]="dragOverFileId() === item.id"
+        [class.border-slate-300]="dragOverFileId() === item.id"
+        [class.cursor-not-allowed]="dragOverFileId() === item.id"
+        [draggable]="activeTab() !== 'bin'"
+        (dragstart)="onItemDragStart($event, item)"
+        (dragend)="onItemDragEnd()"
+        (dragover)="onFileDragOver($event, item)"
+        (dragleave)="onFileDragLeave($event, item)"
+        (drop)="onFileDrop($event, item)"
+        (click)="onFileCardClick(item, $event)"
+        (dblclick)="openPreview(item)">
+        @if (dragOverFileId() === item.id) {
+        <div class="absolute inset-0 z-20 rounded-2xl bg-slate-200/60 pointer-events-none animate-in fade-in duration-100"></div>
+        }
+        <!-- Preview Banner / Thumbnail -->
+        <div class="relative h-28 w-full overflow-hidden bg-slate-100 flex items-center justify-center">
+          @if (item.mime_type.startsWith('image/')) {
+          <img [src]="getDownloadUrl(item)" [alt]="item.filename"
+            class="h-full w-full object-cover transition duration-300 group-hover:scale-105" loading="lazy" />
+          } @else {
+          <div class="flex flex-col items-center justify-center gap-1.5 p-3">
+            <app-file-icon [filename]="item.filename" [mimeType]="item.mime_type" size="xl"
+              customClass="transition-transform group-hover:scale-110" />
+            <span
+              class="rounded-md bg-white/90 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-600 shadow-2xs">
+              {{ item.filename.split('.').pop() || 'FILE' }}
+            </span>
+          </div>
+          }
+
+          <!-- Quick Floating Hover Actions -->
+          <div
+            class="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition bg-white/95 backdrop-blur-xs rounded-xl p-1 shadow-sm">
+            <button type="button"
+              class="rounded-lg p-1 text-slate-600 hover:bg-blue-50 hover:text-blue-600 transition cursor-pointer"
+              title="Preview" (click)="$event.stopPropagation(); openPreview(item)">
+              <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+            </button>
+            <button type="button"
+              class="rounded-lg p-1 text-slate-600 hover:bg-blue-50 hover:text-blue-600 transition cursor-pointer"
+              title="Rename file" (click)="$event.stopPropagation(); startRename(item)">
+              <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 20h9" />
+                <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+              </svg>
+            </button>
+            <button type="button"
+              class="rounded-lg p-1 text-slate-600 hover:bg-blue-50 hover:text-blue-600 transition cursor-pointer"
+              title="Share" (click)="$event.stopPropagation(); shareTarget.set(item)">
+              <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M10 13a5 5 0 0 0 7.07 0l3-3a5 5 0 0 0-7.07-7.07l-1.5 1.5" />
+                <path d="M14 11a5 5 0 0 0-7.07 0l-3 3a5 5 0 0 0 7.07 7.07l1.5-1.5" />
+              </svg>
+            </button>
+            <a [href]="getDownloadUrl(item)" download
+              class="rounded-lg p-1 text-slate-600 hover:bg-blue-50 hover:text-blue-600 transition cursor-pointer"
+              title="Download" (click)="$event.stopPropagation()">
+              <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+            </a>
+            <button type="button"
+              class="rounded-lg p-1 text-slate-400 hover:bg-red-50 hover:text-red-600 transition cursor-pointer"
+              title="Move to bin" (click)="$event.stopPropagation(); deleteConfirmTarget.set(item)">
+              <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 6h18m-2 0v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- File Info -->
+        <div class="p-3">
+          <p class="truncate text-xs font-semibold text-slate-800 group-hover:text-blue-600" [title]="item.filename">
+            {{ item.filename }}
+          </p>
+          @if (item.snippet) {
+          <p class="mt-1 line-clamp-2 text-[10px] text-slate-500 bg-slate-50 p-1 rounded-md" [title]="item.snippet">
+            {{ item.snippet }}
+          </p>
+          }
+          <div class="mt-2 flex items-center justify-between text-[10px] text-slate-500">
+            <span>{{ formatSize(item.file_size) }}</span>
+            <span>{{ (item.deleted_at || item.created_at) | date: 'shortDate' }}</span>
+          </div>
+          @if (item.owner_name || item.owner_login) {
+          <p class="mt-1 truncate text-[10px] text-blue-600">
+            Shared by {{ item.owner_name || item.owner_login }}
+          </p>
+          }
+        </div>
+      </div>
+      }
+      }
+    </div>
+    } @else {
+    <!-- Unified List View for Shared Pockets -->
+    <div class="mt-2 mb-6">
+      <table class="w-full table-fixed text-left text-sm border-separate border-spacing-0">
+        <thead class="sticky top-0 bg-white text-[#444746] z-10 select-none">
+          <tr class="border-b border-slate-200/80 text-xs font-medium">
+            <!-- Name Column -->
+            <th class="px-4 py-3 text-left font-medium text-slate-700 cursor-pointer hover:text-slate-900 group/th select-none"
+              (click)="toggleSort('name')" title="Sort by Name">
+              <div class="flex items-center gap-1.5">
+                <span>Name</span>
+                @if (sortColumn() === 'name') {
+                  @if (sortDirection() === 'asc') {
+                  <svg class="size-3.5 text-blue-600 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-label="Sorted ascending">
+                    <path d="M12 19V5m-7 7 7-7 7 7" />
+                  </svg>
+                  } @else {
+                  <svg class="size-3.5 text-blue-600 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-label="Sorted descending">
+                    <path d="M12 5v14m7-7-7 7-7-7" />
+                  </svg>
+                  }
+                } @else {
+                <svg class="size-3 text-slate-400 opacity-0 group-hover/th:opacity-100 transition-opacity shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="m7 15 5 5 5-5M7 9l5-5 5 5" />
+                </svg>
+                }
+              </div>
+            </th>
+
+            <!-- Modified Column -->
+            <th
+              class="hidden md:table-cell w-44 px-4 py-3 text-left font-medium text-slate-700 cursor-pointer hover:text-slate-900 group/th select-none"
+              (click)="toggleSort('modified')" title="Sort by Modified">
+              <div class="flex items-center gap-1.5">
+                <span>Modified</span>
+                @if (sortColumn() === 'modified') {
+                  @if (sortDirection() === 'asc') {
+                  <svg class="size-3.5 text-blue-600 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-label="Sorted ascending">
+                    <path d="M12 19V5m-7 7 7-7 7 7" />
+                  </svg>
+                  } @else {
+                  <svg class="size-3.5 text-blue-600 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-label="Sorted descending">
+                    <path d="M12 5v14m7-7-7 7-7-7" />
+                  </svg>
+                  }
+                } @else {
+                <svg class="size-3 text-slate-400 opacity-0 group-hover/th:opacity-100 transition-opacity shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="m7 15 5 5 5-5M7 9l5-5 5 5" />
+                </svg>
+                }
+              </div>
+            </th>
+
+            <!-- Size Column -->
+            <th
+              class="hidden lg:table-cell w-36 px-4 py-3 text-left font-medium text-slate-700 cursor-pointer hover:text-slate-900 group/th select-none"
+              (click)="toggleSort('size')" title="Sort by Size">
+              <div class="flex items-center gap-1.5">
+                <span>Size</span>
+                @if (sortColumn() === 'size') {
+                  @if (sortDirection() === 'asc') {
+                  <svg class="size-3.5 text-blue-600 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-label="Sorted ascending">
+                    <path d="M12 19V5m-7 7 7-7 7 7" />
+                  </svg>
+                  } @else {
+                  <svg class="size-3.5 text-blue-600 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-label="Sorted descending">
+                    <path d="M12 5v14m7-7-7 7-7-7" />
+                  </svg>
+                  }
+                } @else {
+                <svg class="size-3 text-slate-400 opacity-0 group-hover/th:opacity-100 transition-opacity shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="m7 15 5 5 5-5M7 9l5-5 5 5" />
+                </svg>
+                }
+              </div>
+            </th>
+
+            <!-- Header Right Actions column -->
+            <th class="w-14 px-2 py-3 text-right">
+              <span class="sr-only">Actions</span>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (item of displayItems(); track item.id) {
+          <tr class="border-b border-slate-100 hover:bg-[#f2f6fc] group transition cursor-pointer select-none"
+            [class.bg-[#e8f0fe]]="isItemSelected(item.id) && dragOverFolderId() !== item.id && dragOverFileId() !== item.id"
+            [class.bg-slate-200]="isItemBeingMoved(item.id)"
+            [class.opacity-70]="isItemBeingMoved(item.id)"
+            [class.bg-blue-100]="item.is_folder && dragOverFolderId() === item.id"
+            [class.folder-drop-target]="item.is_folder && dragOverFolderId() === item.id"
+            [class.ring-2]="!item.is_folder && dragOverFileId() === item.id"
+            [class.bg-slate-100]="!item.is_folder && dragOverFileId() === item.id"
+            [class.ring-slate-300]="!item.is_folder && dragOverFileId() === item.id"
+            [class.cursor-not-allowed]="!item.is_folder && dragOverFileId() === item.id"
+            [draggable]="activeTab() !== 'bin'"
+            (dragstart)="onItemDragStart($event, item)"
+            (dragend)="onItemDragEnd()"
+            (dragover)="item.is_folder ? onFolderDragOver($event, item) : onFileDragOver($event, item)"
+            (dragleave)="item.is_folder ? onFolderDragLeave($event, item) : onFileDragLeave($event, item)"
+            (drop)="item.is_folder ? onFolderDrop($event, item) : onFileDrop($event, item)"
+            (click)="selectItem(item, $event)"
+            (dblclick)="item.is_folder ? openFolder(item) : openPreview(item)">
+            <!-- Name Column -->
+            <td class="px-4 py-3" (click)="onItemNameClick(item, $event)">
+              <div class="flex min-w-0 items-center gap-3">
+                <app-file-icon [filename]="item.filename" [mimeType]="item.mime_type" [isFolder]="item.is_folder"
+                  size="md" customClass="shrink-0 size-5" />
+                <div class="min-w-0 flex-1">
+                  <div class="flex items-center gap-2">
+                    <span class="truncate text-sm font-medium text-[#1f1f1f] group-hover:text-blue-700 block"
+                      [class.text-slate-500]="!item.is_folder && dragOverFileId() === item.id"
+                      [title]="item.filename">
+                      {{ item.filename }}
+                    </span>
+                  </div>
+                  @if (item.owner_name || item.owner_login) {
+                  <span class="text-[11px] text-slate-400 block truncate">
+                    Shared by {{ item.owner_name || item.owner_login }}
+                  </span>
+                  }
+                </div>
+              </div>
+            </td>
+
+            <!-- Modified Column -->
+            <td class="hidden md:table-cell px-4 py-3 text-xs text-[#444746] whitespace-nowrap">
+              {{ formatGoogleDriveDate(item.created_at) }}
+            </td>
+
+            <!-- Size Column -->
+            <td class="hidden lg:table-cell px-4 py-3 text-xs text-[#444746] whitespace-nowrap font-mono">
+              {{ formatSize(item.file_size) }}
+            </td>
+
+            <!-- Action Dropdown Column -->
+            <td class="px-2 py-3 text-right relative whitespace-nowrap" (click)="$event.stopPropagation()">
+              <div class="flex items-center justify-end">
+                <button type="button"
+                  class="rounded-full p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-200/80 transition cursor-pointer"
+                  title="More options" (click)="toggleDropdown(item.id, $event)">
+                  <svg class="size-4" viewBox="0 0 24 24" fill="currentColor">
+                    <circle cx="12" cy="5" r="1.5" />
+                    <circle cx="12" cy="12" r="1.5" />
+                    <circle cx="12" cy="19" r="1.5" />
+                  </svg>
+                </button>
+              </div>
+
+              <!-- Kebab Action Dropdown Menu -->
+              @if (openDropdownId() === item.id) {
+              <div
+                class="absolute right-2 top-full mt-1 w-48 rounded-xl bg-white py-1.5 shadow-2xl border border-slate-200 z-30 text-left animate-in fade-in zoom-in-95 duration-100">
+                @if (!item.is_folder) {
+                <button type="button"
+                  class="flex w-full items-center gap-2.5 px-3.5 py-2 text-xs text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+                  (click)="openPreview(item); closeAllDropdowns()">
+                  <svg class="size-4 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="2">
+                    <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+                    <circle cx="12" cy="12" r="3" />
+                  </svg>
+                  <span>Preview</span>
+                </button>
+                }
+                <a [href]="getDownloadUrl(item)" download
+                  class="flex w-full items-center gap-2.5 px-3.5 py-2 text-xs text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+                  (click)="closeAllDropdowns()">
+                  <svg class="size-4 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                  </svg>
+                  <span>{{ item.is_folder ? 'Download (.zip)' : 'Download' }}</span>
+                </a>
+                <button type="button"
+                  class="flex w-full items-center gap-2.5 px-3.5 py-2 text-xs text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+                  (click)="startRename(item); closeAllDropdowns()">
+                  <svg class="size-4 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="2">
+                    <path d="M12 20h9" />
+                    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                  </svg>
+                  <span>Rename</span>
+                </button>
+                <button type="button"
+                  class="flex w-full items-center gap-2.5 px-3.5 py-2 text-xs text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+                  (click)="shareTarget.set(item); closeAllDropdowns()">
+                  <svg class="size-4 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="2">
+                    <path d="M10 13a5 5 0 0 0 7.07 0l3-3a5 5 0 0 0-7.07-7.07l-1.5 1.5" />
+                    <path d="M14 11a5 5 0 0 0-7.07 0l-3 3a5 5 0 0 0 7.07 7.07l1.5-1.5" />
+                  </svg>
+                  <span>Share</span>
+                </button>
+                <div class="my-1 border-t border-slate-100"></div>
+                <button type="button"
+                  class="flex w-full items-center gap-2.5 px-3.5 py-2 text-xs text-red-600 hover:bg-red-50 transition cursor-pointer"
+                  (click)="deleteConfirmTarget.set(item); closeAllDropdowns()">
+                  <svg class="size-4 text-red-600" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="2">
+                    <path d="M3 6h18m-2 0v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                  </svg>
+                  <span>Move to bin</span>
+                </button>
+              </div>
+              }
+            </td>
+          </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    }
+    } @else {
+    <!-- Empty Shared Pockets State -->
+    <div class="flex flex-col items-center gap-4 py-20 text-center text-[#444746]">
+      <div class="size-20 rounded-3xl bg-blue-50 text-blue-600 flex items-center justify-center">
+        <svg class="size-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+          <circle cx="9" cy="7" r="4" />
+          <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+          <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+        </svg>
+      </div>
+      <div>
+        <p class="text-lg font-semibold text-[#1f1f1f]">No shared pockets yet</p>
+        <p class="text-xs text-slate-500 mt-1 max-w-sm">Files and folders shared with your Tailscale identity by other
+          members will appear here.</p>
+      </div>
+    </div>
+    }
+    }
+
+    <!-- ============================================================== -->
+    <!-- TAB 3: BIN (Exactly as previously)                             -->
+    <!-- ============================================================== -->
+    @else if (activeTab() === 'bin') {
+    @if (totalItems() > 0) {
+    @if (viewMode() === 'grid') {
+    <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 pt-4 pb-4">
+      @for (item of items(); track item.id) {
+      @if (item.is_folder) {
+      <!-- Unified Folder Card -->
+      <div
+        class="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-xs hover:border-slate-400 hover:shadow-lg transition cursor-pointer"
+        (click)="onFolderCardClick(item, $event)"
+        (dblclick)="openFolder(item)">
+        <!-- Folder Banner / Icon -->
+        <div class="relative h-28 w-full overflow-hidden bg-slate-100 flex items-center justify-center">
+          <app-file-icon [isFolder]="true" size="xl" customClass="transition-transform group-hover:scale-110" />
+          <span
+            class="absolute bottom-2 left-2 rounded-md bg-white/90 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-700 shadow-2xs">
+            FOLDER
+          </span>
+
+          <!-- Bin Days Left Badge -->
+          <span class="absolute bottom-2 right-2 rounded-md px-1.5 py-0.5 text-[9px] font-bold shadow-2xs"
+            [class.bg-amber-100]="(item.days_left || 0) > 3" [class.text-amber-800]="(item.days_left || 0) > 3"
+            [class.bg-red-100]="(item.days_left || 0) <= 3" [class.text-red-700]="(item.days_left || 0) <= 3">
+            {{ item.days_left || 0 }}d left
+          </span>
+
+          <!-- Bin Hover Actions -->
+          <div
+            class="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition bg-white/95 backdrop-blur-xs rounded-xl p-1 shadow-sm">
+            <button type="button"
+              class="rounded-lg p-1 text-slate-600 hover:bg-emerald-50 hover:text-emerald-600 transition cursor-pointer"
+              title="Restore folder" (click)="$event.stopPropagation(); restoreItem(item)">
+              <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                <path d="M3 3v5h5" />
+              </svg>
+            </button>
+            <button type="button"
+              class="rounded-lg p-1 text-slate-400 hover:bg-red-50 hover:text-red-600 transition cursor-pointer"
+              title="Delete permanently" (click)="$event.stopPropagation(); deleteConfirmTarget.set(item)">
+              <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 6h18m-2 0v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Folder Info -->
+        <div class="p-3">
+          <p class="truncate text-xs font-semibold text-slate-800 group-hover:text-blue-600" [title]="item.filename">
+            {{ item.filename }}
+          </p>
+          <div class="mt-2 flex items-center justify-between text-[10px] text-slate-500">
+            <span class="font-mono font-medium">{{ formatSize(item.file_size) }}</span>
+            <span>{{ (item.deleted_at || item.created_at) | date: 'shortDate' }}</span>
+          </div>
+        </div>
+      </div>
+      } @else {
+      <!-- Unified File Card -->
+      <div
+        class="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-xs hover:border-blue-400 hover:shadow-lg transition cursor-pointer"
+        (click)="onFileCardClick(item, $event)"
+        (dblclick)="openPreview(item)">
+        <!-- Preview Banner / Thumbnail -->
+        <div class="relative h-28 w-full overflow-hidden bg-slate-100 flex items-center justify-center">
+          @if (item.mime_type.startsWith('image/')) {
+          <img [src]="getDownloadUrl(item)" [alt]="item.filename"
+            class="h-full w-full object-cover transition duration-300 group-hover:scale-105" loading="lazy" />
+          } @else {
+          <div class="flex flex-col items-center justify-center gap-1.5 p-3">
+            <app-file-icon [filename]="item.filename" [mimeType]="item.mime_type" size="xl"
+              customClass="transition-transform group-hover:scale-110" />
+            <span
+              class="rounded-md bg-white/90 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-600 shadow-2xs">
+              {{ item.filename.split('.').pop() || 'FILE' }}
+            </span>
+          </div>
+          }
+
+          <!-- Bin Days Left Badge -->
+          <span class="absolute bottom-2 right-2 rounded-md px-1.5 py-0.5 text-[9px] font-bold shadow-2xs"
+            [class.bg-amber-100]="(item.days_left || 0) > 3" [class.text-amber-800]="(item.days_left || 0) > 3"
+            [class.bg-red-100]="(item.days_left || 0) <= 3" [class.text-red-700]="(item.days_left || 0) <= 3">
+            {{ item.days_left || 0 }}d left
+          </span>
+
+          <!-- Bin Hover Actions -->
+          <div
+            class="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition bg-white/95 backdrop-blur-xs rounded-xl p-1 shadow-sm">
+            <button type="button"
+              class="rounded-lg p-1 text-slate-600 hover:bg-emerald-50 hover:text-emerald-600 transition cursor-pointer"
+              title="Restore file" (click)="$event.stopPropagation(); restoreItem(item)">
+              <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                <path d="M3 3v5h5" />
+              </svg>
+            </button>
+            <button type="button"
+              class="rounded-lg p-1 text-slate-400 hover:bg-red-50 hover:text-red-600 transition cursor-pointer"
+              title="Delete permanently" (click)="$event.stopPropagation(); deleteConfirmTarget.set(item)">
+              <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 6h18m-2 0v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- File Info -->
+        <div class="p-3">
+          <p class="truncate text-xs font-semibold text-slate-800 group-hover:text-blue-600" [title]="item.filename">
+            {{ item.filename }}
+          </p>
+          <div class="mt-2 flex items-center justify-between text-[10px] text-slate-500">
+            <span>{{ formatSize(item.file_size) }}</span>
+            <span>{{ (item.deleted_at || item.created_at) | date: 'shortDate' }}</span>
+          </div>
+        </div>
+      </div>
+      }
+      }
+    </div>
+    } @else {
+    <!-- Unified List View for Bin -->
+    <div class="mt-2 mb-6">
+      <table class="w-full table-fixed text-left text-sm border-separate border-spacing-0">
+        <thead class="sticky top-0 bg-white text-[#444746] z-10 select-none">
+          <tr class="border-b border-slate-200/80 text-xs font-medium">
+            <!-- Name Column -->
+            <th class="px-4 py-3 text-left font-medium text-slate-700 cursor-pointer hover:text-slate-900 group/th select-none"
+              (click)="toggleSort('name')" title="Sort by Name">
+              <div class="flex items-center gap-1.5">
+                <span>Name</span>
+                @if (sortColumn() === 'name') {
+                  @if (sortDirection() === 'asc') {
+                  <svg class="size-3.5 text-blue-600 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-label="Sorted ascending">
+                    <path d="M12 19V5m-7 7 7-7 7 7" />
+                  </svg>
+                  } @else {
+                  <svg class="size-3.5 text-blue-600 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-label="Sorted descending">
+                    <path d="M12 5v14m7-7-7 7-7-7" />
+                  </svg>
+                  }
+                } @else {
+                <svg class="size-3 text-slate-400 opacity-0 group-hover/th:opacity-100 transition-opacity shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="m7 15 5 5 5-5M7 9l5-5 5 5" />
+                </svg>
+                }
+              </div>
+            </th>
+
+            <!-- Days Remaining Column -->
+            <th
+              class="hidden md:table-cell w-44 px-4 py-3 text-left font-medium text-slate-700 cursor-pointer hover:text-slate-900 group/th select-none"
+              (click)="toggleSort('days_left')" title="Sort by Days Remaining">
+              <div class="flex items-center gap-1.5">
+                <span>Days Remaining</span>
+                @if (sortColumn() === 'days_left') {
+                  @if (sortDirection() === 'asc') {
+                  <svg class="size-3.5 text-blue-600 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-label="Sorted ascending">
+                    <path d="M12 19V5m-7 7 7-7 7 7" />
+                  </svg>
+                  } @else {
+                  <svg class="size-3.5 text-blue-600 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-label="Sorted descending">
+                    <path d="M12 5v14m7-7-7 7-7-7" />
+                  </svg>
+                  }
+                } @else {
+                <svg class="size-3 text-slate-400 opacity-0 group-hover/th:opacity-100 transition-opacity shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="m7 15 5 5 5-5M7 9l5-5 5 5" />
+                </svg>
+                }
+              </div>
+            </th>
+
+            <!-- Size Column -->
+            <th
+              class="hidden lg:table-cell w-36 px-4 py-3 text-left font-medium text-slate-700 cursor-pointer hover:text-slate-900 group/th select-none"
+              (click)="toggleSort('size')" title="Sort by Size">
+              <div class="flex items-center gap-1.5">
+                <span>Size</span>
+                @if (sortColumn() === 'size') {
+                  @if (sortDirection() === 'asc') {
+                  <svg class="size-3.5 text-blue-600 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-label="Sorted ascending">
+                    <path d="M12 19V5m-7 7 7-7 7 7" />
+                  </svg>
+                  } @else {
+                  <svg class="size-3.5 text-blue-600 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-label="Sorted descending">
+                    <path d="M12 5v14m7-7-7 7-7-7" />
+                  </svg>
+                  }
+                } @else {
+                <svg class="size-3 text-slate-400 opacity-0 group-hover/th:opacity-100 transition-opacity shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="m7 15 5 5 5-5M7 9l5-5 5 5" />
+                </svg>
+                }
+              </div>
+            </th>
+
+            <!-- Header Right Actions column -->
+            <th class="w-14 px-2 py-3 text-right">
+              <span class="sr-only">Actions</span>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (item of displayItems(); track item.id) {
+          <tr class="border-b border-slate-100 hover:bg-[#f2f6fc] group transition cursor-pointer select-none"
+            [class.bg-[#e8f0fe]]="isItemSelected(item.id)" (click)="selectItem(item, $event)">
+            <!-- Name Column -->
+            <td class="px-4 py-3">
+              <div class="flex min-w-0 items-center gap-3">
+                <app-file-icon [filename]="item.filename" [mimeType]="item.mime_type" [isFolder]="item.is_folder"
+                  size="md" customClass="shrink-0 size-5" />
+                <span class="truncate text-sm font-medium text-[#1f1f1f]" [title]="item.filename">
+                  {{ item.filename }}
+                </span>
+              </div>
+            </td>
+
+            <!-- Days Remaining Column -->
+            <td class="hidden md:table-cell px-4 py-3 text-xs text-[#444746] whitespace-nowrap">
+              <span class="rounded-full px-2.5 py-0.5 font-semibold text-[11px]"
+                [class.bg-amber-100]="(item.days_left || 0) > 3" [class.text-amber-800]="(item.days_left || 0) > 3"
+                [class.bg-red-100]="(item.days_left || 0) <= 3" [class.text-red-700]="(item.days_left || 0) <= 3">
+                {{ item.days_left || 0 }} {{ (item.days_left || 0) === 1 ? 'day' : 'days' }} left
+              </span>
+            </td>
+
+            <!-- Size Column -->
+            <td class="hidden lg:table-cell px-4 py-3 text-xs text-[#444746] whitespace-nowrap font-mono">
+              {{ formatSize(item.file_size) }}
+            </td>
+
+            <!-- Action Dropdown Column -->
+            <td class="px-2 py-3 text-right relative whitespace-nowrap" (click)="$event.stopPropagation()">
+              <div class="flex items-center justify-end">
+                <button type="button"
+                  class="rounded-full p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-200/80 transition cursor-pointer"
+                  title="More options" (click)="toggleDropdown(item.id, $event)">
+                  <svg class="size-4" viewBox="0 0 24 24" fill="currentColor">
+                    <circle cx="12" cy="5" r="1.5" />
+                    <circle cx="12" cy="12" r="1.5" />
+                    <circle cx="12" cy="19" r="1.5" />
+                  </svg>
+                </button>
+              </div>
+
+              <!-- Kebab Action Dropdown Menu for Bin -->
+              @if (openDropdownId() === item.id) {
+              <div
+                class="absolute right-2 top-full mt-1 w-48 rounded-xl bg-white py-1.5 shadow-2xl border border-slate-200 z-30 text-left animate-in fade-in zoom-in-95 duration-100">
+                <button type="button"
+                  class="flex w-full items-center gap-2.5 px-3.5 py-2 text-xs text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+                  (click)="confirmRestore(item); closeAllDropdowns()">
+                  <svg class="size-4 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                    <path d="M3 3v5h5" />
+                  </svg>
+                  <span>Restore</span>
+                </button>
+                <div class="my-1 border-t border-slate-100"></div>
+                <button type="button"
+                  class="flex w-full items-center gap-2.5 px-3.5 py-2 text-xs text-red-600 hover:bg-red-50 transition cursor-pointer"
+                  (click)="deleteConfirmTarget.set(item); closeAllDropdowns()">
+                  <svg class="size-4 text-red-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 6h18m-2 0v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                  </svg>
+                  <span>Delete permanently</span>
+                </button>
+              </div>
+              }
+            </td>
+          </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    }
+    } @else {
+    <!-- Empty Bin State -->
+    <div class="flex flex-col items-center gap-4 py-20 text-center text-[#444746]">
+      <div class="size-20 rounded-3xl bg-slate-100 text-slate-400 flex items-center justify-center">
+        <svg class="size-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <path d="M3 6h18m-2 0v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+        </svg>
+      </div>
+      <div>
+        <p class="text-lg font-semibold text-[#1f1f1f]">Bin is empty</p>
+        <p class="text-xs text-slate-500 mt-1 max-w-sm">Items moved to the bin remain for 30 days before permanent
+          deletion, or until emptied manually.</p>
+      </div>
+    </div>
+    }
+    }
+    } @else {
+    <!-- Skeleton Loading State -->
+    <div class="flex items-center justify-center py-20" role="status">
+      <div class="size-8 animate-spin rounded-full border-4 border-[#c2e7ff] border-t-[#0b57d0]"></div>
+      <span class="sr-only">Loading files...</span>
+    </div>
+    }
+  </div>
+</main>
+
+
+<!-- ==================== FLOATING ACTION BUTTON & UPLOAD PROGRESS (BOTTOM RIGHT) ==================== -->
+@if (activeTab() !== 'bin') {
+<div class="fixed right-6 bottom-6 z-40 flex flex-col items-end gap-3 pointer-events-none">
+  <!-- Floating Action Button (FAB) for 'New' -->
+  <div class="pointer-events-auto relative">
+    <!-- Speed Dial Dropdown Menu (Pops upward above FAB) -->
+    @if (newMenuOpen()) {
+    <div
+      class="absolute right-0 bottom-full mb-3 w-56 rounded-2xl bg-white p-2 shadow-2xl border border-slate-200 z-50 animate-in fade-in slide-in-from-bottom-2 duration-150">
+      <button type="button"
+        class="flex w-full items-center gap-3 rounded-xl px-3.5 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+        (click)="folderInput.click(); newMenuOpen.set(false)">
+        <svg class="size-5 text-slate-700" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M3 6a2 2 0 0 1 2-2h4.17a2 2 0 0 1 1.42.59L12 6h7a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+        </svg>
+        <span>Upload folder</span>
+      </button>
+
+      <button type="button"
+        class="flex w-full items-center gap-3 rounded-xl px-3.5 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+        (click)="fileInput.click(); newMenuOpen.set(false)">
+        <svg class="size-5 text-blue-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+          <polyline points="14 2 14 8 20 8" />
+          <line x1="12" y1="18" x2="12" y2="12" />
+          <line x1="9" y1="15" x2="15" y2="15" />
+        </svg>
+        <span>Upload files</span>
+      </button>
+
+      <div class="my-1 border-t border-slate-100"></div>
+
+      <button type="button"
+        class="flex w-full items-center gap-3 rounded-xl px-3.5 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+        (click)="newFolderOpen.set(true); newMenuOpen.set(false)">
+        <svg class="size-5 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+          <line x1="12" y1="11" x2="12" y2="17" />
+          <line x1="9" y1="14" x2="15" y2="14" />
+        </svg>
+        <span>New folder</span>
+      </button>
+    </div>
+    }
+
+    <!-- The FAB Button with Google Drive 4-Color Styled '+' Icon -->
+    <button type="button"
+      class="flex size-14 items-center justify-center rounded-2xl bg-white shadow-xl hover:shadow-2xl border border-slate-200/90 hover:scale-105 active:scale-95 transition-all duration-200 cursor-pointer"
+      [class.rotate-45]="newMenuOpen()" [title]="newMenuOpen() ? 'Close' : 'New'" (click)="newMenuOpen.update(v => !v)">
+      <svg class="size-7" viewBox="0 0 24 24" fill="none" stroke-width="2.6" stroke-linecap="round">
+        <path d="M12 5v14" stroke="#4285F4" />
+        <path d="M5 12h14" stroke="#EA4335" />
+      </svg>
+    </button>
+  </div>
+
+  <!-- Upload progress panel (Google Drive style - sits below the FAB) -->
+  @if (uploads().length) {
+  <section
+    class="pointer-events-auto w-[min(24rem,calc(100vw-3rem))] overflow-hidden rounded-2xl bg-white shadow-2xl border border-slate-200 transition-all duration-200"
+    aria-label="Uploads">
+    <!-- Header -->
+    <header class="flex items-center justify-between bg-white px-4 py-3 border-b border-slate-100">
+      <h2 class="text-xs font-semibold text-slate-800" aria-live="polite">
+        @if (activeUploads()) {
+        Uploading {{ activeUploads() }} {{ activeUploads() === 1 ? 'item' : 'items' }}
+        } @else {
+        Uploads complete ({{ uploads().length }} {{ uploads().length === 1 ? 'item' : 'items' }})
+        }
+      </h2>
+      <div class="flex items-center gap-1">
+        <button type="button" class="rounded-full p-1 text-slate-500 hover:bg-slate-100 cursor-pointer transition"
+          [title]="uploadPanelMinimized() ? 'Expand' : 'Minimize'" (click)="uploadPanelMinimized.update(v => !v)">
+          <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            @if (uploadPanelMinimized()) {
+            <path d="m18 15-6-6-6 6" />
+            } @else {
+            <path d="m6 9 6 6 6-6" />
+            }
+          </svg>
+        </button>
+        <button type="button" class="rounded-full p-1 text-slate-500 hover:bg-slate-100 cursor-pointer transition"
+          title="Close" (click)="uploads.set([])">
+          <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 6 6 18M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    @if (!uploadPanelMinimized()) {
+    <!-- Subheader status bar -->
+    <div
+      class="flex items-center justify-between bg-[#f0f4f9] px-4 py-2 text-[11px] text-slate-600 border-b border-slate-100">
+      <span>
+        @if (activeUploads()) {
+        {{ activeUploads() }} {{ activeUploads() === 1 ? 'item' : 'items' }} left
+        } @else {
+        Complete
+        }
+      </span>
+      @if (activeUploads()) {
+      <button type="button" class="font-semibold text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+        (click)="cancelAllUploads()">
+        Cancel
+      </button>
+      }
+    </div>
+
+    <!-- Items list -->
+    <ul class="max-h-64 overflow-y-auto divide-y divide-slate-100">
+      @for (upload of uploads(); track upload.id) {
+      <li class="flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50/80 transition">
+        <app-file-icon [filename]="upload.name" [isFolder]="upload.isFolder || upload.name.includes('/')" size="md"
+          customClass="shrink-0 size-5" />
+        <div class="min-w-0 flex-1">
+          <div class="flex items-center justify-between gap-2">
+            <p class="truncate text-xs font-medium text-slate-800" [title]="upload.name">{{ upload.name }}</p>
+            @if (upload.progressText) {
+            <span class="text-[10px] text-slate-500 font-medium shrink-0">{{ upload.progressText }}</span>
+            }
+          </div>
+          @if (upload.status === 'uploading') {
+          <div class="mt-1 h-1 w-full overflow-hidden rounded-full bg-slate-200">
+            <div class="h-full rounded-full bg-blue-600 transition-all duration-200" [style.width.%]="upload.progress">
+            </div>
+          </div>
+          } @else if (upload.status === 'queued') {
+          <p class="text-[10px] text-slate-400">Queued...</p>
+          } @else if (upload.status === 'error') {
+          <p class="text-[10px] text-red-600">Upload error</p>
+          }
+        </div>
+
+        <!-- Status indicator (Exact Google Drive styles) -->
+        <div class="shrink-0">
+          @switch (upload.status) {
+          @case ('queued') {
+          <div class="size-4.5 rounded-full border-2 border-slate-300" title="Queued"></div>
+          }
+          @case ('uploading') {
+          <div class="size-4.5 animate-spin rounded-full border-2 border-blue-600 border-t-transparent"
+            title="Uploading..."></div>
+          }
+          @case ('done') {
+          <div class="flex size-4.5 items-center justify-center rounded-full bg-[#1e8e3e] text-white shadow-2xs"
+            title="Complete">
+            <svg class="size-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5"
+              stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+          </div>
+          }
+          @case ('error') {
+          <div class="flex size-4.5 items-center justify-center rounded-full bg-red-600 text-white" title="Error">
+            <svg class="size-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+          </div>
+          }
+          }
+        </div>
+      </li>
+      }
+    </ul>
+    }
+  </section>
+  }
+</div>
+}
+
+
+<!-- ==================== MODALS ==================== -->
+
+<!-- Create New Folder Modal -->
+@if (newFolderOpen()) {
+<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs" role="dialog"
+  aria-modal="true" (click)="newFolderOpen.set(false)">
+  <div class="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl border border-slate-200"
+    (click)="$event.stopPropagation()">
+    <div class="size-11 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center mb-4">
+      <svg class="size-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+        <line x1="12" y1="11" x2="12" y2="17" />
+        <line x1="9" y1="14" x2="15" y2="14" />
+      </svg>
+    </div>
+    <h3 class="text-base font-semibold text-slate-900 mb-1">New folder</h3>
+    <p class="text-xs text-slate-500 mb-4">Enter a name for the new folder:</p>
+
+    <input type="text" placeholder="Folder name"
+      class="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm focus:border-blue-600 focus:outline-none mb-6"
+      [value]="newFolderName()" (input)="newFolderName.set($any($event.target).value)" (keydown.enter)="createFolder()"
+      autofocus />
+
+    <div class="flex items-center justify-end gap-3">
+      <button type="button"
+        class="px-4 py-2 rounded-xl text-xs font-medium text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+        (click)="newFolderOpen.set(false)">
+        Cancel
+      </button>
+      <button type="button"
+        class="px-4 py-2 rounded-xl text-xs font-semibold bg-blue-600 text-white hover:bg-blue-700 shadow-sm transition cursor-pointer disabled:opacity-50"
+        [disabled]="!newFolderName().trim() || creatingFolder()" (click)="createFolder()">
+        {{ creatingFolder() ? 'Creating...' : 'Create' }}
+      </button>
+    </div>
+  </div>
+</div>
+}
+
+<!-- Rename Modal -->
+@if (renameTarget(); as target) {
+<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs" role="dialog"
+  aria-modal="true" (click)="renameTarget.set(null)">
+  <div class="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl border border-slate-200"
+    (click)="$event.stopPropagation()">
+    <div class="size-11 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center mb-4">
+      <svg class="size-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M12 20h9" />
+        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+      </svg>
+    </div>
+    <h3 class="text-base font-semibold text-slate-900 mb-1">
+      Rename {{ target.is_folder ? 'folder' : 'file' }}
+    </h3>
+    <p class="text-xs text-slate-500 mb-4">Enter a new name:</p>
+
+    <input type="text"
+      class="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm focus:border-blue-600 focus:outline-none mb-6"
+      [value]="renameInput()" (input)="renameInput.set($any($event.target).value)" (keydown.enter)="submitRename()"
+      autofocus />
+
+    <div class="flex items-center justify-end gap-3">
+      <button type="button"
+        class="px-4 py-2 rounded-xl text-xs font-medium text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+        (click)="renameTarget.set(null)">
+        Cancel
+      </button>
+      <button type="button"
+        class="px-4 py-2 rounded-xl text-xs font-semibold bg-blue-600 text-white hover:bg-blue-700 shadow-sm transition cursor-pointer disabled:opacity-50"
+        [disabled]="!renameInput().trim() || renaming()" (click)="submitRename()">
+        {{ renaming() ? 'Renaming...' : 'Rename' }}
+      </button>
+    </div>
+  </div>
+</div>
+}
+
+<!-- Delete Confirmation Dialog (Soft Delete vs Permanent Delete) -->
+@if (deleteConfirmTarget(); as target) {
+<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs" role="dialog"
+  aria-modal="true" (click)="cancelDeleteConfirmation()">
+  <div class="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl border border-slate-200"
+    (click)="$event.stopPropagation()">
+    <div class="size-11 rounded-full bg-red-100 text-red-600 flex items-center justify-center mb-4">
+      <svg class="size-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <path d="M3 6h18m-2 0v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+      </svg>
+    </div>
+    <h3 class="text-base font-semibold text-slate-900 mb-2">
+      @if (pendingBinDropItems().length > 1) {
+      Move {{ pendingBinDropItems().length }} items to bin?
+      } @else if (activeTab() === 'bin') {
+      Delete permanently?
+      } @else {
+      Move {{ target.is_folder ? 'folder' : 'file' }} to bin?
+      }
+    </h3>
+    <p class="text-xs text-slate-500 mb-6">
+      @if (pendingBinDropItems().length > 1) {
+      Are you sure you want to move <span class="font-semibold text-slate-800">{{ pendingBinDropItems().length }} items</span> to the bin? Items stay in the bin for 30 days before being deleted, or can be restored anytime.
+      } @else if (activeTab() === 'bin') {
+      Are you sure you want to permanently delete <span class="font-semibold text-slate-800">{{ target.filename
+        }}</span>? This cannot be undone.
+      } @else {
+      Are you sure you want to move <span class="font-semibold text-slate-800">{{ target.filename }}</span> to the bin?
+      Items stay in the bin for 30 days before being deleted, or can be restored anytime.
+      }
+    </p>
+    <div class="flex items-center justify-end gap-3">
+      <button type="button"
+        class="px-4 py-2 rounded-xl text-xs font-medium text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+        (click)="cancelDeleteConfirmation()">
+        Cancel
+      </button>
+      <button type="button"
+        class="px-4 py-2 rounded-xl text-xs font-semibold bg-red-600 text-white hover:bg-red-700 shadow-sm transition cursor-pointer disabled:opacity-50"
+        [disabled]="deleting()" (click)="deleteItem(target)">
+        {{ deleting() ? 'Deleting...' : (activeTab() === 'bin' ? 'Delete Permanently' : 'Move to Bin') }}
+      </button>
+    </div>
+  </div>
+</div>
+}
+
+<!-- Restore Confirmation Dialog -->
+@if (restoreConfirmTarget(); as target) {
+<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs" role="dialog"
+  aria-modal="true" (click)="restoreConfirmTarget.set(null)">
+  <div class="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl border border-slate-200"
+    (click)="$event.stopPropagation()">
+    <div class="size-11 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mb-4">
+      <svg class="size-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+        <path d="M3 3v5h5" />
+      </svg>
+    </div>
+    <h3 class="text-base font-semibold text-slate-900 mb-2">
+      Restore {{ target.is_folder ? 'folder' : 'file' }}?
+    </h3>
+    <p class="text-xs text-slate-500 mb-6">
+      Are you sure you want to restore <span class="font-semibold text-slate-800">{{ target.filename }}</span>? It will be restored to its previous location in My Pocket.
+    </p>
+    <div class="flex items-center justify-end gap-3">
+      <button type="button"
+        class="px-4 py-2 rounded-xl text-xs font-medium text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+        (click)="restoreConfirmTarget.set(null)">
+        Cancel
+      </button>
+      <button type="button"
+        class="px-4 py-2 rounded-xl text-xs font-semibold bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm transition cursor-pointer disabled:opacity-50"
+        [disabled]="restoring()" (click)="executeRestore(target)">
+        {{ restoring() ? 'Restoring...' : 'Restore' }}
+      </button>
+    </div>
+  </div>
+</div>
+}
+
+<!-- Empty Bin Confirmation Dialog -->
+@if (emptyBinConfirmOpen()) {
+<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs" role="dialog"
+  aria-modal="true" (click)="emptyBinConfirmOpen.set(false)">
+  <div class="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl border border-slate-200"
+    (click)="$event.stopPropagation()">
+    <div class="size-11 rounded-full bg-red-100 text-red-600 flex items-center justify-center mb-4">
+      <svg class="size-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M3 6h18m-2 0v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+      </svg>
+    </div>
+    <h3 class="text-base font-semibold text-slate-900 mb-2">Empty bin?</h3>
+    <p class="text-xs text-slate-500 mb-6">
+      All items currently in the bin will be permanently deleted from disk. This action cannot be undone.
+    </p>
+    <div class="flex items-center justify-end gap-3">
+      <button type="button"
+        class="px-4 py-2 rounded-xl text-xs font-medium text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+        (click)="emptyBinConfirmOpen.set(false)">
+        Cancel
+      </button>
+      <button type="button"
+        class="px-4 py-2 rounded-xl text-xs font-semibold bg-red-600 text-white hover:bg-red-700 shadow-sm transition cursor-pointer disabled:opacity-50"
+        [disabled]="emptyingBin()" (click)="emptyBin()">
+        {{ emptyingBin() ? 'Emptying...' : 'Empty Bin' }}
+      </button>
+    </div>
+  </div>
+</div>
+}
+
+<!-- Share Modal (supports both files and folders) -->
+@if (shareTarget(); as target) {
+<dialog
+  #shareDialog
+  aria-labelledby="share-title"
+  class="m-auto w-[calc(100%-2rem)] max-w-lg rounded-3xl bg-white p-0 text-[#1f1f1f] shadow-2xl backdrop:bg-black/40"
+  (close)="closeShareModal()"
+  (click)="$event.target === shareDialog && shareDialog.close()"
+>
+  <div class="p-6">
+    <h2 id="share-title" class="truncate text-xl font-bold text-slate-900" [title]="target.filename">
+      Share "{{ target.filename }}"
+    </h2>
+
+    <!-- Tailnet User Collaboration -->
+    <div class="mt-5 pt-4 border-t border-slate-100">
+      <p class="text-xs font-bold uppercase tracking-wider text-slate-500">Collaborate with Tailnet User</p>
+      <p class="text-xs text-slate-500 mt-0.5">Authorize access and include in semantic search queries.</p>
+
+      <div class="mt-3 flex items-center gap-2">
+        <input
+          type="text"
+          placeholder="Tailscale login (e.g. alice@tailnet)"
+          class="min-w-0 flex-1 rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs focus:border-blue-600 focus:outline-none"
+          [value]="userShareInput()"
+          (input)="userShareInput.set($any($event.target).value)"
+          (keydown.enter)="shareWithUser()"
+        />
+        <button
+          type="button"
+          class="shrink-0 rounded-xl bg-slate-900 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-800 transition disabled:opacity-50 cursor-pointer"
+          [disabled]="!userShareInput().trim() || userShareLoading()"
+          (click)="shareWithUser()"
+        >
+          {{ userShareLoading() ? 'Sharing...' : 'Share' }}
+        </button>
+      </div>
+
+      @if (userShareSuccess()) {
+        <p class="mt-2 text-xs text-emerald-600 font-medium">{{ userShareSuccess() }}</p>
+      }
+      @if (userShareError()) {
+        <p class="mt-2 text-xs text-red-600 font-medium">{{ userShareError() }}</p>
+      }
+    </div>
+
+    <!-- Public Funnel Sharing Link -->
+    <div class="mt-6 pt-4 border-t border-slate-100">
+      <p class="text-xs font-bold uppercase tracking-wider text-slate-500">Public Funnel Share Link</p>
+      <p class="text-xs text-slate-500 mt-0.5">Allows external individuals outside your Tailnet to download this {{ target.is_folder ? 'folder (as a .zip archive)' : 'file' }}.</p>
+
+      @if (shareLink(); as share) {
+        <div class="mt-3 flex items-center gap-2">
+          <input
+            #urlInput
+            type="text"
+            readonly
+            aria-label="Share link"
+            class="min-w-0 flex-1 rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 text-xs font-mono text-slate-700 focus:bg-white focus:border-blue-600 focus:outline-none"
+            [value]="share.share_url"
+            (focus)="urlInput.select()"
+          />
+          <button
+            type="button"
+            class="shrink-0 rounded-xl border border-slate-300 px-4 py-2 text-xs font-semibold text-blue-600 hover:bg-slate-50 transition cursor-pointer"
+            (click)="copyShareLink(urlInput)"
+          >
+            {{ shareCopied() ? 'Copied!' : 'Copy Link' }}
+          </button>
+        </div>
+        <p class="mt-2 text-[11px] text-slate-400">Expires {{ share.expires_at | date: 'medium' }}</p>
+      } @else if (shareError()) {
+        <p class="mt-3 text-xs text-red-600" role="alert">Couldn't generate a public link.</p>
+      } @else {
+        <p class="mt-3 text-xs text-slate-400" role="status">Generating secure token...</p>
+      }
+    </div>
+
+    <div class="mt-6 flex justify-end">
+      <button
+        type="button"
+        class="rounded-xl bg-blue-600 px-6 py-2 text-xs font-semibold text-white hover:bg-blue-700 shadow-sm transition cursor-pointer"
+        (click)="closeShareModal()"
+      >
+        Done
+      </button>
+    </div>
+  </div>
+</dialog>
+}
+
+<!-- Client-Side Preview Modal -->
+@if (previewTarget(); as target) {
+<div
+  class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200"
+  role="dialog"
+  aria-modal="true"
+  [attr.aria-label]="'Preview of ' + target.filename"
+  (click)="closePreview()"
+>
+  <div
+    class="flex flex-col w-full max-w-5xl h-[88vh] bg-white rounded-2xl shadow-2xl overflow-hidden border border-slate-200/80 transition-all"
+    (click)="$event.stopPropagation()"
+  >
+    <!-- Modal Header -->
+    <header class="flex items-center justify-between gap-3 px-5 py-3.5 bg-slate-50 border-b border-slate-200 shrink-0">
+      <div class="flex items-center gap-3 min-w-0">
+        <div class="flex items-center justify-center size-9 rounded-xl bg-slate-50 shrink-0 border border-slate-200">
+          <app-file-icon [filename]="target.filename" [mimeType]="target.mime_type" size="md" />
+        </div>
+        <div class="min-w-0">
+          <div class="flex items-center gap-2">
+            <h2 class="text-sm font-semibold text-slate-900 truncate" [title]="target.filename">
+              {{ target.filename }}
+            </h2>
+            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-slate-200/80 text-slate-700">
+              {{ previewKind() }}
+            </span>
+          </div>
+          <p class="text-xs text-slate-500">
+            {{ formatSize(target.file_size) }} &bull; {{ target.mime_type || 'Unknown type' }}
+          </p>
+        </div>
+      </div>
+
+      <!-- Action buttons -->
+      <div class="flex items-center gap-2 shrink-0">
+        @if (previewKind() === 'image') {
+          <div class="flex items-center bg-slate-200/60 rounded-lg p-0.5 text-xs text-slate-700">
+            <button type="button" class="px-2 py-1 rounded hover:bg-white transition" title="Zoom out" (click)="zoomOut()">-</button>
+            <span class="px-2 font-mono text-[11px]">{{ Math.round(zoomLevel() * 100) }}%</span>
+            <button type="button" class="px-2 py-1 rounded hover:bg-white transition" title="Zoom in" (click)="zoomIn()">+</button>
+            <button type="button" class="px-2 py-1 rounded hover:bg-white transition ml-1" title="Reset zoom" (click)="resetZoom()">Reset</button>
+          </div>
+        }
+
+        @if (['markdown', 'text', 'csv'].includes(previewKind()) && textContent()) {
+          <button
+            type="button"
+            class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium text-slate-700 hover:bg-slate-200 transition"
+            (click)="copyPreviewContent()"
+          >
+            @if (copySuccess()) {
+              <svg class="size-4 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+              <span class="text-emerald-600">Copied!</span>
+            } @else {
+              <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect width="14" height="14" x="8" y="8" rx="2" ry="2"/>
+                <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>
+              </svg>
+              <span>Copy</span>
+            }
+          </button>
+        }
+
+        <a
+          [href]="downloadUrl()"
+          download
+          class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 shadow-sm transition"
+        >
+          <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="7 10 12 15 17 10"/>
+            <line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          <span>Download</span>
+        </a>
+
+        <button
+          type="button"
+          class="p-2 rounded-xl text-slate-500 hover:bg-slate-200 hover:text-slate-800 transition"
+          aria-label="Close preview"
+          (click)="closePreview()"
+        >
+          <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Modal Content Body -->
+    <div class="flex-1 min-h-0 overflow-auto bg-slate-100/50 relative">
+      @if (previewLoading()) {
+        <div class="flex flex-col items-center justify-center h-full gap-3 py-20 text-slate-500">
+          <div class="size-8 animate-spin rounded-full border-3 border-blue-200 border-t-blue-600"></div>
+          <p class="text-sm">Rendering client-side preview...</p>
+        </div>
+      } @else if (previewError()) {
+        <div class="flex flex-col items-center justify-center h-full gap-3 py-20 text-center px-4">
+          <div class="size-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center">
+            <svg class="size-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="12" y1="8" x2="12" y2="12"/>
+              <line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+          </div>
+          <p class="text-sm font-semibold text-slate-800">{{ previewError() }}</p>
+          <a [href]="downloadUrl()" download class="mt-2 px-4 py-2 rounded-xl bg-blue-600 text-white text-xs font-medium hover:bg-blue-700">
+            Download File Instead
+          </a>
+        </div>
+      } @else {
+        <!-- Markdown Preview -->
+        @if (previewKind() === 'markdown') {
+          <div class="max-w-4xl mx-auto p-6 sm:p-10 bg-white min-h-full shadow-sm">
+            <div class="prose max-w-none text-slate-800" [innerHTML]="markdownHtml()"></div>
+          </div>
+        }
+
+        <!-- CSV Preview -->
+        @if (previewKind() === 'csv') {
+          <div class="flex flex-col h-full bg-white">
+            <div class="flex items-center justify-between gap-4 px-4 py-2.5 bg-slate-50 border-b border-slate-200">
+              <div class="flex items-center gap-2 max-w-sm flex-1">
+                <svg class="size-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="11" cy="11" r="8"/>
+                  <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                </svg>
+                <input
+                  type="text"
+                  placeholder="Filter table rows..."
+                  class="w-full text-xs bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  [value]="csvFilter()"
+                  (input)="csvFilter.set($any($event.target).value)"
+                />
+              </div>
+              @if (csvData(); as data) {
+                <div class="text-xs text-slate-500 font-medium shrink-0">
+                  Showing {{ filteredCsvRows().length }} of {{ data.rows.length }} rows &bull; {{ data.headers.length }} columns
+                </div>
+              }
+            </div>
+            <div class="flex-1 overflow-auto">
+              @if (csvData(); as data) {
+                <table class="w-full text-left text-xs border-collapse">
+                  <thead class="sticky top-0 bg-slate-100/95 backdrop-blur-xs text-slate-700 font-semibold border-b border-slate-200 z-10 shadow-xs">
+                    <tr>
+                      <th class="w-12 px-3 py-2 text-center text-slate-400 border-r border-slate-200 font-mono text-[10px]">#</th>
+                      @for (col of data.headers; track $index) {
+                        <th class="px-3.5 py-2.5 border-r border-slate-200 last:border-r-0 truncate max-w-xs font-semibold">{{ col }}</th>
+                      }
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-slate-100 font-mono">
+                    @for (row of filteredCsvRows(); track $index; let rIdx = $index) {
+                      <tr class="hover:bg-blue-50/40 transition">
+                        <td class="px-2 py-1.5 text-center text-slate-400 border-r border-slate-200 text-[10px] select-none bg-slate-50/50">{{ rIdx + 1 }}</td>
+                        @for (cell of row; track $index) {
+                          <td class="px-3.5 py-1.5 border-r border-slate-100 last:border-r-0 text-slate-800 text-xs truncate max-w-sm">{{ cell }}</td>
+                        }
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              }
+            </div>
+          </div>
+        }
+
+        <!-- PDF Preview -->
+        @if (previewKind() === 'pdf') {
+          <div class="h-full w-full bg-slate-800 flex items-center justify-center">
+            <iframe [src]="sanitizedUrl()" class="w-full h-full border-0" title="PDF Preview"></iframe>
+          </div>
+        }
+
+        <!-- Video Preview -->
+        @if (previewKind() === 'video') {
+          <div class="h-full w-full bg-black flex items-center justify-center p-4">
+            <video controls playsinline preload="metadata" class="max-h-full max-w-full rounded-xl shadow-2xl" [src]="downloadUrl()">
+              Your browser does not support the video tag.
+            </video>
+          </div>
+        }
+
+        <!-- Audio Preview -->
+        @if (previewKind() === 'audio') {
+          <div class="h-full w-full flex flex-col items-center justify-center p-8 bg-slate-900 text-white">
+            <div class="size-28 rounded-3xl bg-blue-600/20 text-blue-400 border border-blue-500/30 flex items-center justify-center mb-6 shadow-xl">
+              <svg class="size-14 animate-pulse" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M9 18V5l12-2v13"/>
+                <circle cx="6" cy="18" r="3"/>
+                <circle cx="18" cy="16" r="3"/>
+              </svg>
+            </div>
+            <h3 class="text-lg font-semibold text-white mb-1">{{ target.filename }}</h3>
+            <p class="text-xs text-slate-400 mb-8">{{ formatSize(target.file_size) }}</p>
+            <audio controls class="w-full max-w-md" [src]="downloadUrl()">
+              Your browser does not support the audio element.
+            </audio>
+          </div>
+        }
+
+        <!-- Image Preview -->
+        @if (previewKind() === 'image') {
+          <div class="h-full w-full flex items-center justify-center p-6 bg-slate-900/90 overflow-auto">
+            <img
+              [src]="downloadUrl()"
+              [alt]="target.filename"
+              class="max-w-none transition-transform duration-150 rounded shadow-2xl"
+              [style.transform]="'scale(' + zoomLevel() + ')'"
+            />
+          </div>
+        }
+
+        <!-- Text / Code Preview -->
+        @if (previewKind() === 'text') {
+          <div class="flex h-full bg-slate-950 text-slate-200 font-mono text-xs overflow-auto">
+            <div class="py-4 pr-3 pl-4 text-right select-none text-slate-600 border-r border-slate-800 bg-slate-950/80 shrink-0">
+              @for (line of lineNumberedText(); track $index) {
+                <div class="leading-5">{{ $index + 1 }}</div>
+              }
+            </div>
+            <pre class="flex-1 p-4 leading-5 overflow-x-auto whitespace-pre font-mono text-slate-100"><code>{{ textContent() }}</code></pre>
+          </div>
+        }
+
+        <!-- Unsupported Fallback -->
+        @if (previewKind() === 'unsupported') {
+          <div class="flex flex-col items-center justify-center h-full p-8 text-center bg-white">
+            <div class="size-20 rounded-2xl bg-slate-100 text-slate-500 flex items-center justify-center mb-4">
+              <svg class="size-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+              </svg>
+            </div>
+            <h3 class="text-base font-semibold text-slate-800 mb-1">No preview available</h3>
+            <p class="text-xs text-slate-500 max-w-sm mb-6">
+              This file type cannot be previewed directly in the browser. You can download the file to inspect it on your device.
+            </p>
+            <a
+              [href]="downloadUrl()"
+              download
+              class="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 shadow-md transition"
+            >
+              <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/>
+                <line x1="12" y1="15" x2="12" y2="3"/>
+              </svg>
+              Download {{ target.filename }}
+            </a>
+          </div>
+        }
+      }
+    </div>
+  </div>
+</div>
+}

@@ -9,7 +9,6 @@
 
 # --- Application Data & Local Storage (Personal Cloud files) ---
 data/
-api/data/
 storage/
 user_files/
 tmp/
@@ -25,7 +24,6 @@ __pycache__/
 *$py.class
 *.so
 .Python
-api/.venv/
 .venv/
 venv/
 ENV/
